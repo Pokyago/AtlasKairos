@@ -573,8 +573,12 @@ footer{position:relative;z-index:1;text-align:center;color:var(--faint);font-siz
 .invrow small{display:block;color:var(--muted);font-size:.82rem}
 .invrow .c{font-family:var(--mono);color:var(--bronze)}
 .calm .rise,.calm .r8{animation:none!important}
-.quick-adj{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 10px}
-.qa{font:inherit;font-family:var(--mono);font-size:.8rem;font-weight:600;padding:5px 10px;border-radius:999px;border:1px solid var(--line);background:var(--night-2);color:var(--ink);cursor:pointer;transition:transform .12s,border-color .2s,background .2s}
+.quick-adj{display:grid;grid-template-columns:repeat(auto-fit,minmax(60px,1fr));gap:8px;margin:6px 0 14px}
+.play-top{grid-template-columns:minmax(160px,220px) minmax(0,1fr);align-items:start}
+@media (max-width:700px){.play-top{grid-template-columns:1fr}.play-top .portrait{display:none}.qa{font-size:.84rem;padding:10px 0;letter-spacing:-.02em}.quick-adj{gap:6px}}
+.qa{white-space:nowrap}
+@media (max-width:440px){.qa .u{display:none}.qa{font-size:1.05rem!important;letter-spacing:0!important}}
+.qa{font:inherit;font-family:var(--mono);font-size:1rem;font-weight:600;min-height:48px;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--night-2);color:var(--ink);cursor:pointer;transition:transform .12s,border-color .2s,background .2s}
 .qa:active{transform:scale(.95)}
 .qa.pos{color:var(--hero);border-color:rgba(95,191,143,.4)}
 .qa.pos:hover{background:rgba(95,191,143,.12)}
@@ -1963,16 +1967,16 @@ function fillPlay(){
   const invNames = Object.keys(L.inv).filter(n => L.inv[n] > 0);
   const known = knownAbilities(s);
   $('#jgBody').innerHTML = `
-  <section class="prof-top" style="grid-template-columns:minmax(160px,220px) minmax(0,1fr);align-items:start">
+  <section class="prof-top play-top">
     <div class="portrait rise" style="background-image:url('${img(prof ? prof.img : 'image35')}')" role="img" aria-label="${esc(prof ? prof.name : '')}"></div>
     <div class="rise" style="--i:1">
       <div class="eyebrow">${esc(s.player ? 'Jogador: ' + s.player : 'Personagem')}</div>
       <h1 class="h-page" style="margin-bottom:0">${esc(s.name || 'Sem nome')} <span class="lvl" style="font-size:1rem;vertical-align:middle">Nível ${lv.level}</span></h1>
       <p class="flavor" style="margin:4px 0 14px">${esc((race || {}).name || '')} · ${esc(prof ? prof.name : '')}${second ? ' / ' + esc(second.name) : ''}</p>
       <div class="vbar"><div class="vtop"><span>PV</span><b>${L.pv} / ${c.pv}</b></div><span class="track"><i data-w="${pct(L.pv, c.pv)}" style="width:${jgBars ? jgBars.pv : pct(L.pv, c.pv)}%;background:${L.pv / c.pv <= .3 ? 'linear-gradient(90deg,#8e2f22,var(--foe))' : 'linear-gradient(90deg,#2f7d55,var(--hero))'}"></i></span></div>
-      <div class="quick-adj" aria-label="Ajuste rápido de PV">${[-5, -1, 1, 5, 10].map(v => `<button type="button" class="qa ${v < 0 ? 'neg' : 'pos'}" data-q="pv" data-v="${v}">${v > 0 ? '+' : '−'}${Math.abs(v)} PV</button>`).join('')}</div>
+      <div class="quick-adj" aria-label="Ajuste rápido de PV">${[-5, -1, 1, 5, 10].map(v => `<button type="button" class="qa ${v < 0 ? 'neg' : 'pos'}" data-q="pv" data-v="${v}">${v > 0 ? '+' : '−'}${Math.abs(v)}<span class="u"> PV</span></button>`).join('')}</div>
       <div class="vbar"><div class="vtop"><span>PM</span><b>${L.pm} / ${c.pm}</b></div><span class="track"><i data-w="${pct(L.pm, c.pm)}" style="width:${jgBars ? jgBars.pm : pct(L.pm, c.pm)}%;background:linear-gradient(90deg,#2b4f8f,var(--ether))"></i></span></div>
-      <div class="quick-adj" aria-label="Ajuste rápido de PM">${[-5, -1, 1, 5].map(v => `<button type="button" class="qa ${v < 0 ? 'neg' : 'pm'}" data-q="pm" data-v="${v}">${v > 0 ? '+' : '−'}${Math.abs(v)} PM</button>`).join('')}</div>
+      <div class="quick-adj" aria-label="Ajuste rápido de PM">${[-5, -1, 1, 5].map(v => `<button type="button" class="qa ${v < 0 ? 'neg' : 'pm'}" data-q="pm" data-v="${v}">${v > 0 ? '+' : '−'}${Math.abs(v)}<span class="u"> PM</span></button>`).join('')}</div>
       ${down ? `<div class="warn" style="margin-top:10px"><b>Caído a 0 PV.</b> Faça um Teste de Morte (1d6) no início de cada turno: 6 levanta com 1 PV, 1 morre. <button class="btn small" type="button" id="jgDeath" style="margin-left:6px">Rolar Teste de Morte</button> <span id="jgDeathOut"></span></div>` : ''}
       <div class="dmg">
         <input id="jgN" type="number" min="0" value="${esc(JUI.n)}" aria-label="Quantidade">
