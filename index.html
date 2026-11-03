@@ -1077,7 +1077,7 @@ const RACE_GROW = {
 const blankSheet = () => ({name: 'Bob', race: 'anao-da-montanha', prof: 'alquimista', pts: {PV: 3, PM: 3, FOR: 2, RES: 4, DES: 3, INT: 3, SAB: 3, VEL: 2}, soc: {BRA: 10, 'FÉ': 5, CAR: 15},
   grow: {PV: 80, PM: 20, FOR: 40, RES: 60, DES: 50, INT: 40, SAB: 60, VEL: 50}, humanA: 'PV', humanB: 'DES', elfPick: 'SAB',
   traitNeg: {FOR: 0, RES: 0, DES: 4, INT: 0, SAB: 3, VEL: 0, BRA: 0, 'FÉ': 0, CAR: 3}, traitPos: {FOR: 5, RES: 0, DES: 0, INT: 2, SAB: 0, VEL: 0, BRA: 0, 'FÉ': 0, CAR: 0},
-  knowPts: 3, weapon: 'Adaga', body: 'Armadura de Couro (Armadura Leve)', head: '', shield: '', example: true});
+  knowPts: 3, ability: 'coleta-de-reagentes', notes: 'Traços: Distraído −4, Teimoso −3, Ingênuo −3; Robusto +5, Sábio +2. Conhecimento: Desarmar Armadilhas +3.', weapon: 'Adaga', body: 'Armadura de Couro (Armadura Leve)', head: '', shield: '', example: true});
 let SH = store.get('kairos-ficha', null) || blankSheet();
 const saveSheet = () => store.set('kairos-ficha', SH);
 const itemsOf = g => K.items.filter(it => it.group === g);
@@ -1136,7 +1136,7 @@ function renderSheet(){
   const heads = itemsOf('Proteção').filter(x => x.cat.includes('Cabeça')).map(x => x.name);
   const shields = itemsOf('Proteção').filter(x => x.cat.includes('Escudos')).map(x => x.name);
   const stp = (grp, k, lab, hint) => `<div class="stp"><span>${lab || k}</span><div class="ctl"><button type="button" data-g="${grp}" data-k="${k}" data-d="-1" aria-label="Diminuir ${lab || k}">−</button><b id="v-${grp}-${k}">${SH[grp][k]}</b><button type="button" data-g="${grp}" data-k="${k}" data-d="1" aria-label="Aumentar ${lab || k}">+</button></div>${hint ? `<small id="h-${grp}-${k}">${hint}</small>` : ''}</div>`;
-  page.innerHTML = banner('Ferramenta', 'Calculadora de ficha', 'Monte o personagem pelos passos da criação. A ficha faz as contas de PV, PM, Defesa, Estatísticas Efetivas e crescimento, e avisa quando algo sai das regras.', 'image11', 'center 35%') +
+  page.innerHTML = banner('Ferramenta', 'Calculadora de ficha', 'Monte o personagem pelos passos da criação. A ficha faz as contas de PV, PM, Defesa, Estatísticas Efetivas e crescimento, avisa quando algo sai das regras e exporta em PDF ou Word.', 'image11', 'center 35%') +
   `${SH.example ? '<p class="note-ex rise" id="exnote" style="margin:-18px 0 18px">Começa com o exemplo do livro (Bob, o alquimista anão). Altere à vontade.</p>' : ''}
   <div class="sheet">
     <section class="panel rise" id="sheetForm">
@@ -1146,6 +1146,7 @@ function renderSheet(){
         <div class="field"><label for="sh-race">Raça</label><select id="sh-race">${K.races.map(r => `<option value="${r.id}" ${r.id === SH.race ? 'selected' : ''}>${esc(r.name)}</option>`).join('')}</select></div>
         <div class="field"><label for="sh-prof">Profissão</label><select id="sh-prof">${K.profs.map(p => `<option value="${p.id}" ${p.id === SH.prof ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></div>
         <div class="field" id="raceExtra"></div>
+        <div class="field" style="grid-column:1/-1"><label for="sh-ability">Habilidade inicial</label><select id="sh-ability"></select></div>
       </div>
       <div class="sec-sub"><span>Atributos de combate · 20 pontos, máx. 5</span><span class="budget" id="b-pts"></span></div>
       <div class="steppers">${ATTR8.map(k => stp('pts', k, k, k === 'PV' || k === 'PM' ? '' : '')).join('')}</div>
@@ -1167,6 +1168,8 @@ function renderSheet(){
         <div class="field"><label for="sh-head">Cabeça</label><select id="sh-head">${opt(heads, SH.head, 'Nada')}</select></div>
         <div class="field"><label for="sh-shield">Escudo</label><select id="sh-shield">${opt(shields, SH.shield, 'Nenhum')}</select></div>
       </div>
+      <div class="sec-sub"><span>Anotações</span></div>
+      <div class="field"><textarea id="sh-notes" rows="4" placeholder="Nomes dos traços, conhecimentos, aparência, motivação…" style="font:inherit;background:var(--night-2);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:10px;resize:vertical">${esc(SH.notes || '')}</textarea></div>
       <div class="controls" style="margin-top:18px"><button class="btn small" type="button" id="sh-new">Nova ficha em branco</button><button class="btn small" type="button" id="sh-ex">Voltar ao exemplo</button></div>
     </section>
     <aside class="panel result rise" style="--i:1" id="sheetOut"></aside>
@@ -1186,6 +1189,11 @@ function renderSheet(){
     touched(); updSheet();
   });
   const bind = (id, k) => $('#' + id).addEventListener(id === 'sh-name' ? 'input' : 'change', e => { SH[k] = e.target.value; touched(); if (k === 'race') raceExtra(); updSheet(); });
+  const fillAb = () => { const p = K.profs.find(x => x.id === SH.prof); $('#sh-ability').innerHTML = (p ? p.abilities : []).map(a => `<option value="${a.id}" ${a.id === SH.ability ? 'selected' : ''}>${esc(a.name)} · ${esc(typeOf(a))}</option>`).join(''); if (p && !p.abilities.some(a => a.id === SH.ability)) SH.ability = p.abilities[0].id; };
+  fillAb();
+  $('#sh-prof').addEventListener('change', fillAb);
+  $('#sh-ability').addEventListener('change', e => { SH.ability = e.target.value; touched(); updSheet(); });
+  $('#sh-notes').addEventListener('input', e => { SH.notes = e.target.value; touched(); });
   bind('sh-name', 'name'); bind('sh-race', 'race'); bind('sh-prof', 'prof'); bind('sh-weapon', 'weapon'); bind('sh-body', 'body'); bind('sh-head', 'head'); bind('sh-shield', 'shield');
   $('#sh-new').addEventListener('click', () => { SH = {name: '', race: 'humano', prof: 'soldado', pts: Object.fromEntries(ATTR8.map(k => [k, 0])), soc: {BRA: 10, 'FÉ': 10, CAR: 10}, grow: Object.fromEntries(ATTR8.map(k => [k, 50])), humanA: 'PV', humanB: 'FOR', elfPick: 'SAB', traitNeg: Object.fromEntries(['FOR', 'RES', 'DES', 'INT', 'SAB', 'VEL', 'BRA', 'FÉ', 'CAR'].map(k => [k, 0])), traitPos: Object.fromEntries(['FOR', 'RES', 'DES', 'INT', 'SAB', 'VEL', 'BRA', 'FÉ', 'CAR'].map(k => [k, 0])), knowPts: 0, weapon: '', body: '', head: '', shield: '', example: false}; saveSheet(); renderSheet(); bindTilt(page); });
   $('#sh-ex').addEventListener('click', () => { SH = blankSheet(); saveSheet(); renderSheet(); bindTilt(page); });
@@ -1239,8 +1247,11 @@ function updSheet(){
       <div><span>Ouro restante</span><b>${30 - c.cost} gp</b></div>
     </div>
     <div class="warns">${c.warns.length ? c.warns.map(w => `<div class="warn">${w}</div>`).join('') : '<div class="okmsg">Tudo dentro das regras de criação.</div>'}${!wpOk ? `<div class="warn">${esc(SH.weapon)} não está nos Equipamentos Permitidos de ${esc(prof.name)}: os testes de acerto com ela têm Desvantagem.</div>` : ''}</div>
-    <div class="controls" style="margin-top:14px"><button class="btn small primary" type="button" id="toTurns">Levar para os turnos</button><button class="btn small" type="button" id="copySheet">Copiar resumo</button></div>
+    <div class="controls" style="margin-top:14px"><button class="btn small primary" type="button" id="dlPdf">Baixar PDF</button><button class="btn small primary" type="button" id="dlDocx">Baixar Word (.docx)</button></div>
+    <div class="controls" style="margin-top:8px"><button class="btn small" type="button" id="toTurns">Levar para os turnos</button><button class="btn small" type="button" id="copySheet">Copiar resumo</button></div>
     <p class="hint" id="copyMsg" aria-live="polite"></p>`;
+  $('#dlPdf').onclick = () => { try { download(buildPDF(sheetDoc()), fileBase() + '.pdf'); $('#copyMsg').textContent = 'PDF gerado.'; } catch (e) { $('#copyMsg').textContent = 'Não foi possível gerar o PDF: ' + e.message; } };
+  $('#dlDocx').onclick = () => { try { download(buildDOCX(sheetDoc()), fileBase() + '.docx'); $('#copyMsg').textContent = 'Documento do Word gerado.'; } catch (e) { $('#copyMsg').textContent = 'Não foi possível gerar o documento: ' + e.message; } };
   $('#toTurns').onclick = () => { T.list.push({name: SH.name || 'Herói', foe: false, vel: c.eff.VEL, mod: c.H.ini, d6: d6()}); T.example = false; save(); location.hash = 'turnos'; };
   $('#copySheet').onclick = () => {
     const txt = [`${SH.name} — ${(c.race || {}).name}, ${prof ? prof.name : ''}`, `PV ${c.pv} | PM ${c.pm} | DEF ${c.def} | MOV ${c.mov}`,
@@ -1536,6 +1547,170 @@ function renderGM(){
   <nav class="toc-chips rise">${S.map(s => `<a class="chip" href="#historiador" data-jump="s-${s.id}">${esc(s.title)}</a>`).join('')}</nav>
   ${S.map((s, i) => `<div style="margin-bottom:16px">${prose(s, i, true)}</div>`).join('')}`;
   $('.toc-chips').onclick = e => { const a = e.target.closest('[data-jump]'); if (!a) return; e.preventDefault(); const el = document.getElementById(a.dataset.jump); if (el) el.scrollIntoView({block: 'start'}); };
+}
+
+
+/* ================= Ficha export (PDF + DOCX, no libraries) ================= */
+const plain = h => String(h || '').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/\s+/g, ' ').trim();
+function sheetDoc(){
+  const c = sheetCalc();
+  const prof = K.profs.find(p => p.id === SH.prof) || {name: '', weapons: [], abilities: []};
+  const race = c.race || {name: '', traits: []};
+  const ab = prof.abilities.find(a => a.id === SH.ability) || prof.abilities[0];
+  const tr = k => ((SH.traitPos[k]|0) - (SH.traitNeg[k]|0));
+  const sgn = n => n > 0 ? '+' + n : n < 0 ? '−' + Math.abs(n) : '0';
+  const W = c.W, acc = W.acc != null ? c.eff.DES + W.acc : null;
+  const gear = [['Arma', SH.weapon], ['Corpo', SH.body], ['Cabeça', SH.head], ['Escudo', SH.shield]].filter(x => x[1]);
+  const S = [];
+  S.push({h: 'Recursos', kv: [['PV', c.pv], ['PM', c.pm], ['Defesa', c.def], ['Movimento', c.mov + ' Espaços'], ['Iniciativa / Taxa de Carga', (c.eff.VEL + c.H.ini) + ' + 1d6'], ['Redução de dano', `física RES ${c.eff.RES} · mágica SAB ${c.eff.SAB}`]]});
+  S.push({h: 'Atributos', table: {head: ['Atributo', 'Base', 'Traços', 'Efetivo', 'Crescimento'], rows:
+    ['FOR', 'RES', 'DES', 'INT', 'SAB', 'VEL'].map(k => [k, SH.pts[k], sgn(tr(k)), c.eff[k], Math.min(100, (SH.grow[k]|0) + (c.bonus[k] || 0)) + '%'])
+      .concat([['PV (pontos)', SH.pts.PV, '', c.pv, Math.min(100, (SH.grow.PV|0) + (c.bonus.PV || 0)) + '%'], ['PM (pontos)', SH.pts.PM, '', c.pm, Math.min(100, (SH.grow.PM|0) + (c.bonus.PM || 0)) + '%']])
+      .concat(SOC.map(k => [k, SH.soc[k], sgn(tr(k)), c.eff[k], '—']))}});
+  S.push({h: 'Combate', kv: [['Arma', SH.weapon || '—'], ['Acerto', acc != null ? `1d20 + ${acc}` : '—'], ['Dano', W.dmg || '—'], ['Crítico', '20 natural dobra o dano bruto']]});
+  S.push({h: `Raça · ${race.name}`, list: race.traits.map(t => [t.name, plain(t.text)])});
+  S.push({h: `Profissão · ${prof.name}`, kv: [['Equipamentos permitidos', (prof.weapons || []).join(', ')]], list: ab ? [[`Habilidade inicial: ${ab.name}`, [costOf(ab) !== '—' ? 'Custo: ' + costOf(ab) : 'Custo: grátis', 'Tipo: ' + typeOf(ab), ...Object.entries(ab.meta).filter(([k]) => k !== 'Custo' && k !== 'Tipo').map(([k, v]) => k + ': ' + v)].join(' · ') + '. ' + plain(ab.effect || (ab.rolls || []).map(r => r.n + ': ' + plain(r.text)).join('; '))]] : []});
+  S.push({h: 'Equipamento', kv: gear.map(([k, v]) => [k, `${v} (${(K.items.find(x => x.name === v) || {}).price || 0} gp)`]).concat([['Ouro restante', (30 - c.cost) + ' gp'], ['Kit básico', '10 rações de viagem, cantil com 2 litros, mochila de 20 itens']])});
+  S.push({h: 'Traços e conhecimentos', kv: [['Defeitos', `${c.negSum} pontos`], ['Qualidades', `${c.posSum - (SH.knowPts|0)} pontos`], ['Conhecimentos', `${SH.knowPts|0} pontos`]]});
+  if ((SH.notes || '').trim()) S.push({h: 'Anotações', paras: SH.notes.split(/\n+/).map(s => s.trim()).filter(Boolean)});
+  S.push({h: 'Suporte', kv: [['Companheiros', 'Ranking D inicial (20% de chance de assistência)']]});
+  if (c.warns.length) S.push({h: 'Avisos da calculadora', paras: c.warns});
+  return {title: SH.name || 'Personagem', sub: `${race.name} · ${prof.name} · Nível 1`, sections: S};
+}
+function fileBase(){ return ('Ficha - ' + (SH.name || 'Personagem')).replace(/[\\/:*?"<>|]+/g, '').trim(); }
+function download(blob, name){
+  const url = URL.createObjectURL(blob), a = document.createElement('a');
+  a.href = url; a.download = name; a.rel = 'noopener'; document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 4000);
+}
+
+/* ---- PDF (A4, Helvetica, WinAnsi) ---- */
+const WIN = {0x2014: 0x97, 0x2013: 0x96, 0x2212: 0x2D, 0x2019: 0x92, 0x2018: 0x91, 0x201C: 0x93, 0x201D: 0x94, 0x2026: 0x85, 0x2022: 0x95, 0x20AC: 0x80};
+function winAnsi(s){ let o = ''; for (const ch of String(s)) { const cp = ch.codePointAt(0); o += String.fromCharCode(cp < 256 ? cp : (WIN[cp] || 0x3F)); } return o; }
+function textW(s, size, bold){
+  let w = 0;
+  for (const ch of String(s)) {
+    if (' .,;:!|\'il'.includes(ch)) w += .278; else if ('ftrjI()[]-'.includes(ch)) w += .333;
+    else if ('mwMW'.includes(ch)) w += .833; else if (/[A-ZÀ-Ý]/.test(ch)) w += .68; else if (/[0-9]/.test(ch)) w += .556; else w += .53;
+  }
+  return w * size * (bold ? 1.06 : 1);
+}
+function wrap(s, size, max, bold){
+  const words = String(s).split(' '), lines = []; let cur = '';
+  for (const w of words) { const t = cur ? cur + ' ' + w : w; if (textW(t, size, bold) > max && cur) { lines.push(cur); cur = w; } else cur = t; }
+  if (cur) lines.push(cur); return lines.length ? lines : [''];
+}
+function buildPDF(doc){
+  const PW = 595.28, PH = 841.89, M = 46, CW = PW - 2 * M;
+  const pages = []; let ops = [], y = PH - M;
+  const esc = s => winAnsi(s).replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+  const color = (r, g, b, fill) => ops.push(`${r} ${g} ${b} ${fill ? 'rg' : 'RG'}`);
+  const text = (x, yy, s, size, bold, rgb) => { color(...(rgb || [0.1, 0.12, 0.18]), true); ops.push(`BT /${bold ? 'F2' : 'F1'} ${size} Tf ${x.toFixed(2)} ${yy.toFixed(2)} Td (${esc(s)}) Tj ET`); };
+  const line = (x1, y1, x2, y2, w, rgb) => { color(...(rgb || [0.82, 0.84, 0.88])); ops.push(`${w || 0.6} w ${x1.toFixed(2)} ${y1.toFixed(2)} m ${x2.toFixed(2)} ${y2.toFixed(2)} l S`); };
+  const rect = (x, yy, w, h, rgb) => { color(...rgb, true); ops.push(`${x.toFixed(2)} ${yy.toFixed(2)} ${w.toFixed(2)} ${h.toFixed(2)} re f`); };
+  const newPage = () => { pages.push(ops.join('\n')); ops = []; y = PH - M; footer(); };
+  const footer = () => text(M, 24, 'Crônicas de Kairos · ficha gerada pelo Atlas de Kairos', 7.5, false, [0.55, 0.58, 0.64]);
+  const need = h => { if (y - h < M + 10) newPage(); };
+  footer();
+  // header
+  rect(0, PH - 118, PW, 118, [0.06, 0.08, 0.13]);
+  rect(0, PH - 121, PW, 3, [0.85, 0.63, 0.35]);
+  text(M, PH - 62, doc.title, 26, true, [0.97, 0.97, 0.99]);
+  text(M, PH - 86, doc.sub, 11, false, [0.85, 0.63, 0.35]);
+  text(PW - M - textW('FICHA DE PERSONAGEM', 8, true), PH - 40, 'FICHA DE PERSONAGEM', 8, true, [0.6, 0.65, 0.75]);
+  y = PH - 150;
+  for (const s of doc.sections) {
+    need(48);
+    text(M, y, s.h.toUpperCase(), 9.5, true, [0.66, 0.41, 0.17]);
+    line(M, y - 5, M + CW, y - 5, 0.8, [0.85, 0.63, 0.35]);
+    y -= 22;
+    if (s.kv) {
+      const colW = CW / 2, half = Math.ceil(s.kv.length / 2);
+      const cols = [s.kv.slice(0, half), s.kv.slice(half)];
+      const rows = Math.max(cols[0].length, cols[1].length);
+      for (let r = 0; r < rows; r++) {
+        let hMax = 0;
+        const blocks = cols.map((col, ci) => { const kv = col[r]; if (!kv) return null; const lines = wrap(String(kv[1]), 10.5, colW - 16, true); hMax = Math.max(hMax, 12 + lines.length * 13); return {kv, lines, x: M + ci * colW}; });
+        need(hMax + 4);
+        blocks.forEach(b => { if (!b) return; text(b.x, y, b.kv[0], 7.5, false, [0.45, 0.48, 0.55]); b.lines.forEach((l, i) => text(b.x, y - 12 - i * 13, l, 10.5, true)); });
+        y -= hMax + 6;
+      }
+    }
+    if (s.table) {
+      const n = s.table.head.length, cw = [CW * .32, CW * .14, CW * .16, CW * .16, CW * .22];
+      need(22); rect(M, y - 6, CW, 18, [0.94, 0.95, 0.97]);
+      let x = M + 6; s.table.head.forEach((h, i) => { text(x, y, h, 8, true, [0.35, 0.38, 0.45]); x += cw[i]; }); y -= 18;
+      s.table.rows.forEach((row, ri) => { need(17); x = M + 6; row.forEach((v, i) => { text(x, y, String(v), 10, i === 3, i === 3 ? [0.1, 0.12, 0.18] : [0.25, 0.28, 0.34]); x += cw[i]; }); line(M, y - 6, M + CW, y - 6, 0.4); y -= 17; });
+      y -= 6;
+    }
+    if (s.list) for (const [t, d] of s.list) {
+      const lines = wrap(d, 9.5, CW - 12);
+      need(16 + lines.length * 12.5);
+      text(M, y, t, 10.5, true); y -= 14;
+      lines.forEach(l => { text(M + 10, y, l, 9.5, false, [0.25, 0.28, 0.34]); y -= 12.5; });
+      y -= 6;
+    }
+    if (s.paras) for (const p of s.paras) { const lines = wrap(p, 10, CW); need(lines.length * 13 + 4); lines.forEach(l => { text(M, y, l, 10, false, [0.25, 0.28, 0.34]); y -= 13; }); y -= 4; }
+    y -= 14;
+  }
+  pages.push(ops.join('\n'));
+  // assemble objects
+  const objs = []; const add = s => { objs.push(s); return objs.length; };
+  const cat = add(''), pagesId = add(''), f1 = add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>'), f2 = add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>');
+  const kids = pages.map(content => { const cs = add(`<< /Length ${content.length} >>\nstream\n${content}\nendstream`); return add(`<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 ${PW} ${PH}] /Resources << /Font << /F1 ${f1} 0 R /F2 ${f2} 0 R >> >> /Contents ${cs} 0 R >>`); });
+  objs[cat - 1] = `<< /Type /Catalog /Pages ${pagesId} 0 R >>`;
+  objs[pagesId - 1] = `<< /Type /Pages /Kids [${kids.map(k => k + ' 0 R').join(' ')}] /Count ${kids.length} >>`;
+  const info = add(`<< /Title (${esc('Ficha - ' + doc.title)}) /Producer (Atlas de Kairos) >>`);
+  let out = '%PDF-1.4\n%\xE2\xE3\xCF\xD3\n'; const offs = [];
+  objs.forEach((o, i) => { offs.push(out.length); out += `${i + 1} 0 obj\n${o}\nendobj\n`; });
+  const xref = out.length;
+  out += `xref\n0 ${objs.length + 1}\n0000000000 65535 f \n` + offs.map(o => String(o).padStart(10, '0') + ' 00000 n \n').join('');
+  out += `trailer\n<< /Size ${objs.length + 1} /Root ${cat} 0 R /Info ${info} 0 R >>\nstartxref\n${xref}\n%%EOF`;
+  const bytes = new Uint8Array(out.length); for (let i = 0; i < out.length; i++) bytes[i] = out.charCodeAt(i) & 255;
+  return new Blob([bytes], {type: 'application/pdf'});
+}
+
+/* ---- DOCX (minimal OOXML in a stored zip) ---- */
+const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+const crc32 = b => { let c = 0xFFFFFFFF; for (let i = 0; i < b.length; i++) c = CRC[(c ^ b[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+function zipStore(files){
+  const enc = new TextEncoder(), parts = [], central = []; let off = 0;
+  const u16 = v => [v & 255, (v >>> 8) & 255], u32 = v => [v & 255, (v >>> 8) & 255, (v >>> 16) & 255, (v >>> 24) & 255];
+  for (const [name, str] of files) {
+    const nb = enc.encode(name), data = enc.encode(str), crc = crc32(data);
+    const head = [...u32(0x04034b50), ...u16(20), ...u16(0x0800), ...u16(0), ...u16(0), ...u16(0x21), ...u32(crc), ...u32(data.length), ...u32(data.length), ...u16(nb.length), ...u16(0)];
+    parts.push(new Uint8Array(head), nb, data);
+    central.push(new Uint8Array([...u32(0x02014b50), ...u16(20), ...u16(20), ...u16(0x0800), ...u16(0), ...u16(0), ...u16(0x21), ...u32(crc), ...u32(data.length), ...u32(data.length), ...u16(nb.length), ...u16(0), ...u16(0), ...u16(0), ...u16(0), ...u32(0), ...u32(off)]), nb);
+    off += head.length + nb.length + data.length;
+  }
+  const cdSize = central.reduce((a, p) => a + p.length, 0);
+  const end = new Uint8Array([...u32(0x06054b50), ...u16(0), ...u16(0), ...u16(files.length), ...u16(files.length), ...u32(cdSize), ...u32(off), ...u16(0)]);
+  return new Blob([...parts, ...central, end], {type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+}
+function buildDOCX(doc){
+  const x = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const run = (t, o = {}) => `<w:r><w:rPr>${o.b ? '<w:b/>' : ''}${o.c ? `<w:color w:val="${o.c}"/>` : ''}<w:sz w:val="${o.sz || 21}"/></w:rPr><w:t xml:space="preserve">${x(t)}</w:t></w:r>`;
+  const para = (runs, o = {}) => `<w:p><w:pPr>${o.style ? `<w:pStyle w:val="${o.style}"/>` : ''}<w:spacing w:before="${o.before || 0}" w:after="${o.after ?? 80}"/>${o.border ? '<w:pBdr><w:bottom w:val="single" w:sz="8" w:space="2" w:color="D9A05A"/></w:pBdr>' : ''}</w:pPr>${runs}</w:p>`;
+  const cell = (t, o = {}) => `<w:tc><w:tcPr><w:tcW w:w="${o.w || 1800}" w:type="dxa"/>${o.fill ? `<w:shd w:val="clear" w:color="auto" w:fill="${o.fill}"/>` : ''}</w:tcPr>${para(run(t, {b: o.b, sz: o.sz || 20, c: o.c}), {after: 40})}</w:tc>`;
+  const table = (rows, widths, headFill) => `<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/><w:tblBorders><w:top w:val="single" w:sz="4" w:color="D0D5DE"/><w:bottom w:val="single" w:sz="4" w:color="D0D5DE"/><w:insideH w:val="single" w:sz="4" w:color="D0D5DE"/><w:left w:val="nil"/><w:right w:val="nil"/><w:insideV w:val="nil"/></w:tblBorders><w:tblCellMar><w:left w:w="100" w:type="dxa"/><w:right w:w="100" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid>${widths.map(w => `<w:gridCol w:w="${w}"/>`).join('')}</w:tblGrid>${rows.map((r, ri) => `<w:tr>${r.map((v, i) => cell(v, {w: widths[i], b: (headFill && ri === 0) || i === 0, fill: headFill && ri === 0 ? 'EEF0F4' : '', c: headFill && ri === 0 ? '5A6170' : ''})).join('')}</w:tr>`).join('')}</w:tbl>`;
+  let body = para(run('FICHA DE PERSONAGEM', {b: true, sz: 16, c: '8A93A6'}), {after: 0}) + para(run(doc.title, {b: true, sz: 48}), {after: 0}) + para(run(doc.sub, {sz: 24, c: 'A8692B'}), {after: 240});
+  for (const s of doc.sections) {
+    body += para(run(s.h.toUpperCase(), {b: true, sz: 20, c: 'A8692B'}), {before: 200, after: 100, border: true});
+    if (s.kv) body += table(s.kv.map(([k, v]) => [k, String(v)]), [3200, 6100]);
+    if (s.table) body += table([s.table.head, ...s.table.rows.map(r => r.map(String))], [2600, 1400, 1500, 1500, 2300], true);
+    if (s.list) s.list.forEach(([t, d]) => { body += para(run(t, {b: true, sz: 21}), {before: 80, after: 20}) + para(run(d, {sz: 20, c: '3C4250'})); });
+    if (s.paras) s.paras.forEach(p => { body += para(run(p, {sz: 20, c: '3C4250'})); });
+  }
+  body += para(run('Crônicas de Kairos · ficha gerada pelo Atlas de Kairos', {sz: 14, c: '8A93A6'}), {before: 300});
+  const docXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${body}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1000" w:right="1100" w:bottom="1000" w:left="1100" w:header="600" w:footer="600" w:gutter="0"/></w:sectPr></w:body></w:document>`;
+  const styles = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Calibri"/><w:lang w:val="pt-BR"/></w:rPr></w:rPrDefault></w:docDefaults></w:styles>`;
+  return zipStore([
+    ['[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/></Types>'],
+    ['_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>'],
+    ['word/_rels/document.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>'],
+    ['word/document.xml', docXml],
+    ['word/styles.xml', styles],
+  ]);
 }
 
 /* ================= Router ================= */
