@@ -546,6 +546,41 @@ footer{position:relative;z-index:1;text-align:center;color:var(--faint);font-siz
   .color-grid{grid-template-columns:1fr}
 }
 
+/* ---------- Em jogo ---------- */
+.vbar{margin:8px 0}
+.vtop{display:flex;justify-content:space-between;font-size:.8rem;letter-spacing:.12em;color:var(--muted);font-weight:700;margin-bottom:4px}
+.vtop b{font-family:var(--mono);color:var(--ink);letter-spacing:0;font-size:.95rem}
+.track{display:block;height:16px;border-radius:999px;background:var(--night-2);border:1px solid var(--line-soft);overflow:hidden;position:relative}
+.track i{position:absolute;inset:0 auto 0 0;border-radius:999px;transition:width .6s cubic-bezier(.2,.75,.25,1),background .4s}
+.dmg{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;align-items:center}
+.dmg input,.dmg select{font:inherit;font-size:.92rem;background:var(--night-2);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:8px 10px;min-width:0}
+.dmg input[type=number]{width:84px;font-family:var(--mono);text-align:center}
+.playgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.playgrid .wide{grid-column:1/-1}
+.mini{width:26px;height:26px;border-radius:7px;border:1px solid var(--line);background:var(--panel-2);color:var(--ink);cursor:pointer;font:inherit;line-height:1}
+.mini:hover{border-color:var(--bronze)}
+.pips{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.pips button{width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:var(--night-2);color:var(--faint);font-size:1.2rem;cursor:pointer;transition:all .2s}
+.pips button[aria-pressed="true"]{color:#1a1206;background:radial-gradient(circle,#ffe2a8,var(--bronze));border-color:var(--bronze);box-shadow:0 0 18px var(--bronze-glow)}
+.chip.cond-n[aria-pressed="true"]{background:var(--foe);border-color:var(--foe);color:#fff}
+.chip.cond-p[aria-pressed="true"]{background:var(--hero);border-color:var(--hero);color:#08140e}
+.inv{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.invrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 12px;border-radius:10px;background:var(--night-2);border:1px solid var(--line-soft)}
+.invrow small{display:block;color:var(--muted);font-size:.82rem}
+.invrow .c{font-family:var(--mono);color:var(--bronze)}
+.lvbox{padding:24px;margin-top:22px;border-color:rgba(217,160,90,.5);box-shadow:0 0 0 1px rgba(217,160,90,.2),0 20px 60px rgba(0,0,0,.4);scroll-margin-top:90px}
+.lvbox h3{color:var(--bronze);margin:20px 0 8px}
+.rolls8{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:8px;margin-top:10px}
+.r8{display:flex;flex-direction:column;align-items:center;gap:2px;padding:12px 4px;border-radius:12px;background:var(--night-2);border:1px solid var(--line-soft);transition:all .3s}
+.r8 span{font-size:.7rem;letter-spacing:.14em;font-weight:700;color:var(--muted)}
+.r8 b{font-family:var(--display);font-size:1.5rem}
+.r8 small{font-size:.7rem;color:var(--faint)}
+.r8 em{font-style:normal;font-family:var(--mono);font-size:.85rem;opacity:0;transition:opacity .3s}
+.r8.shown em{opacity:1}
+.r8.up.shown{border-color:var(--hero);background:rgba(95,191,143,.1);box-shadow:0 0 20px rgba(95,191,143,.2)}
+.r8.up.shown em{color:var(--hero)}
+@media (max-width:800px){.playgrid{grid-template-columns:1fr}.rolls8{grid-template-columns:repeat(4,minmax(0,1fr))}}
+
 .prose,.step{scroll-margin-top:90px}
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
@@ -1105,11 +1140,17 @@ function sheetCalc(){
   const eff = {};
   ['FOR', 'RES', 'DES', 'INT', 'SAB', 'VEL'].forEach(k => eff[k] = (SH.pts[k]|0) + (SH.traitPos[k]|0) - (SH.traitNeg[k]|0) + (H.stat === k ? 1 : 0));
   SOC.forEach(k => eff[k] = (SH.soc[k]|0) + (SH.traitPos[k]|0) - (SH.traitNeg[k]|0));
+  const L = lvOf(SH), known = knownAbilities(SH).map(x => x.ab.id);
+  ['FOR', 'RES', 'DES', 'INT', 'SAB', 'VEL'].forEach(k => eff[k] += (L.gains[k]|0));
+  [...['FOR', 'RES', 'DES', 'INT', 'SAB', 'VEL'], ...SOC].forEach(k => eff[k] += (L.pos[k]|0) + (L.negRed[k]|0));
   eff.VEL += B.vel + Sd.vel;
-  const pv = 1 + 3 * (SH.pts.PV|0) + B.pv + H.pv, pm = 1 + 3 * (SH.pts.PM|0) + B.pm + H.pm;
-  const def = 10 + eff.DES + Sd.def + W.def;
+  const per = L.hpMode === 'pv' ? 1 : 3;
+  const pv = 1 + 3 * (SH.pts.PV|0) + per * (L.gains.PV|0) + B.pv + H.pv + (known.includes('porte-nobre') ? 3 : 0) + (known.includes('fortaleza-corporea') ? 6 : 0);
+  const pm = 1 + 3 * (SH.pts.PM|0) + per * (L.gains.PM|0) + B.pm + H.pm;
+  const def = 10 + eff.DES + Sd.def + W.def + (known.includes('afinidade-protetora') && SH.shield ? 1 : 0);
   const race = K.races.find(r => r.id === SH.race);
-  const mov = 3;
+  const mov = 3 + (known.includes('marcha-implacavel') ? 1 : 0);
+  const ring = {}; (SH.rings || []).forEach(n => { const m = /Concede \+20% (?:de taxa )?de crescimento em ([^(.]+?)\s*\((\w+)\)/.exec((K.items.find(x => x.name === n) || {}).desc || ''); if (m) ring[m[2]] = (ring[m[2]] || 0) + 20; });
   const grow = {...SH.grow};
   const rb = RACE_GROW[SH.race];
   const bonus = {};
@@ -1127,7 +1168,7 @@ function sheetCalc(){
   if (posSum !== negSum) warns.push(`Traços positivos + conhecimentos somam ${posSum}; devem somar o mesmo que os negativos (${negSum}).`);
   if (Object.values(SH.traitNeg).some(v => v > 5)) warns.push('Cada defeito vale de −1 a −5.');
   if (cost > 30) warns.push(`O equipamento custa ${cost} gp; o personagem começa com 30 gp.`);
-  return {W, B, H, Sd, eff, pv, pm, def, mov, grow, bonus, ptsSum, socSum, growSum, negSum, posSum, cost, warns, race};
+  return {W, B, H, Sd, eff, pv, pm, def, mov, grow, bonus, ring, L, ptsSum, socSum, growSum, negSum, posSum, cost, warns, race};
 }
 function renderSheet(){
   const opt = (list, cur, none) => (none ? `<option value="">${none}</option>` : '') + list.map(x => `<option ${x === cur ? 'selected' : ''}>${esc(x)}</option>`).join('');
@@ -1142,7 +1183,8 @@ function renderSheet(){
     <section class="panel rise" id="sheetForm">
       <h3>Identidade</h3>
       <div class="fields">
-        <div class="field"><label for="sh-name">Nome</label><input id="sh-name" value="${esc(SH.name)}"></div>
+        <div class="field"><label for="sh-name">Personagem</label><input id="sh-name" value="${esc(SH.name)}"></div>
+        <div class="field"><label for="sh-player">Jogador</label><input id="sh-player" value="${esc(SH.player || '')}" placeholder="Nome de quem joga"></div>
         <div class="field"><label for="sh-race">Raça</label><select id="sh-race">${K.races.map(r => `<option value="${r.id}" ${r.id === SH.race ? 'selected' : ''}>${esc(r.name)}</option>`).join('')}</select></div>
         <div class="field"><label for="sh-prof">Profissão</label><select id="sh-prof">${K.profs.map(p => `<option value="${p.id}" ${p.id === SH.prof ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></div>
         <div class="field" id="raceExtra"></div>
@@ -1170,7 +1212,9 @@ function renderSheet(){
       </div>
       <div class="sec-sub"><span>Anotações</span></div>
       <div class="field"><textarea id="sh-notes" rows="4" placeholder="Nomes dos traços, conhecimentos, aparência, motivação…" style="font:inherit;background:var(--night-2);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:10px;resize:vertical">${esc(SH.notes || '')}</textarea></div>
-      <div class="controls" style="margin-top:18px"><button class="btn small" type="button" id="sh-new">Nova ficha em branco</button><button class="btn small" type="button" id="sh-ex">Voltar ao exemplo</button></div>
+      <div class="controls" style="margin-top:18px"><button class="btn small primary" type="button" id="sh-save">Salvar arquivo da ficha</button><label class="btn small" for="sh-open" style="cursor:pointer">Abrir arquivo da ficha</label><input id="sh-open" type="file" accept=".json,application/json" hidden></div>
+      <p class="hint" id="sh-fileMsg" aria-live="polite">O arquivo .json guarda a ficha para continuar depois, ou vai para a pasta fichas do GitHub e aparece na página Jogadores.</p>
+      <div class="controls" style="margin-top:10px"><button class="btn small" type="button" id="sh-new">Nova ficha em branco</button><button class="btn small" type="button" id="sh-ex">Voltar ao exemplo</button></div>
     </section>
     <aside class="panel result rise" style="--i:1" id="sheetOut"></aside>
   </div>`;
@@ -1188,14 +1232,16 @@ function renderSheet(){
     const el = document.getElementById(`v-${g}-${k}`); if (el) el.textContent = g === 'root' ? SH[k] : SH[g][k];
     touched(); updSheet();
   });
-  const bind = (id, k) => $('#' + id).addEventListener(id === 'sh-name' ? 'input' : 'change', e => { SH[k] = e.target.value; touched(); if (k === 'race') raceExtra(); updSheet(); });
-  const fillAb = () => { const p = K.profs.find(x => x.id === SH.prof); $('#sh-ability').innerHTML = (p ? p.abilities : []).map(a => `<option value="${a.id}" ${a.id === SH.ability ? 'selected' : ''}>${esc(a.name)} · ${esc(typeOf(a))}</option>`).join(''); if (p && !p.abilities.some(a => a.id === SH.ability)) SH.ability = p.abilities[0].id; };
+  const bind = (id, k) => $('#' + id).addEventListener(id === 'sh-name' || id === 'sh-player' ? 'input' : 'change', e => { SH[k] = e.target.value; touched(); if (k === 'race') raceExtra(); updSheet(); });
+  const fillAb = () => { SH.prof = $('#sh-prof').value; const p = K.profs.find(x => x.id === SH.prof); $('#sh-ability').innerHTML = (p ? p.abilities : []).map(a => `<option value="${a.id}" ${a.id === SH.ability ? 'selected' : ''}>${esc(a.name)} · ${esc(typeOf(a))}</option>`).join(''); if (p && !p.abilities.some(a => a.id === SH.ability)) SH.ability = p.abilities[0].id; };
   fillAb();
   $('#sh-prof').addEventListener('change', fillAb);
   $('#sh-ability').addEventListener('change', e => { SH.ability = e.target.value; touched(); updSheet(); });
   $('#sh-notes').addEventListener('input', e => { SH.notes = e.target.value; touched(); });
-  bind('sh-name', 'name'); bind('sh-race', 'race'); bind('sh-prof', 'prof'); bind('sh-weapon', 'weapon'); bind('sh-body', 'body'); bind('sh-head', 'head'); bind('sh-shield', 'shield');
+  bind('sh-player', 'player'); bind('sh-name', 'name'); bind('sh-race', 'race'); bind('sh-prof', 'prof'); bind('sh-weapon', 'weapon'); bind('sh-body', 'body'); bind('sh-head', 'head'); bind('sh-shield', 'shield');
   $('#sh-new').addEventListener('click', () => { SH = {name: '', race: 'humano', prof: 'soldado', pts: Object.fromEntries(ATTR8.map(k => [k, 0])), soc: {BRA: 10, 'FÉ': 10, CAR: 10}, grow: Object.fromEntries(ATTR8.map(k => [k, 50])), humanA: 'PV', humanB: 'FOR', elfPick: 'SAB', traitNeg: Object.fromEntries(['FOR', 'RES', 'DES', 'INT', 'SAB', 'VEL', 'BRA', 'FÉ', 'CAR'].map(k => [k, 0])), traitPos: Object.fromEntries(['FOR', 'RES', 'DES', 'INT', 'SAB', 'VEL', 'BRA', 'FÉ', 'CAR'].map(k => [k, 0])), knowPts: 0, weapon: '', body: '', head: '', shield: '', example: false}; saveSheet(); renderSheet(); bindTilt(page); });
+  $('#sh-save').addEventListener('click', () => { const s = JSON.parse(JSON.stringify(SH)); delete s.example; download(sheetFile(s), fileBase() + '.json'); $('#sh-fileMsg').textContent = 'Arquivo salvo. Mande para o Historiador ou guarde para abrir depois.'; });
+  $('#sh-open').addEventListener('change', e => readSheetFiles(e.target.files).then(arr => { SH = arr[0]; SH.example = false; saveSheet(); renderSheet(); bindTilt(page); }).catch(err => { $('#sh-fileMsg').textContent = 'Não consegui abrir: ' + err.message; }));
   $('#sh-ex').addEventListener('click', () => { SH = blankSheet(); saveSheet(); renderSheet(); bindTilt(page); });
   raceExtra(); updSheet();
 }
@@ -1248,10 +1294,11 @@ function updSheet(){
     </div>
     <div class="warns">${c.warns.length ? c.warns.map(w => `<div class="warn">${w}</div>`).join('') : '<div class="okmsg">Tudo dentro das regras de criação.</div>'}${!wpOk ? `<div class="warn">${esc(SH.weapon)} não está nos Equipamentos Permitidos de ${esc(prof.name)}: os testes de acerto com ela têm Desvantagem.</div>` : ''}</div>
     <div class="controls" style="margin-top:14px"><button class="btn small primary" type="button" id="dlPdf">Baixar PDF</button><button class="btn small primary" type="button" id="dlDocx">Baixar Word (.docx)</button></div>
-    <div class="controls" style="margin-top:8px"><button class="btn small" type="button" id="toTurns">Levar para os turnos</button><button class="btn small" type="button" id="copySheet">Copiar resumo</button></div>
+    <div class="controls" style="margin-top:8px"><button class="btn small" type="button" id="toPlay">Abrir em jogo</button><button class="btn small" type="button" id="toTurns">Levar para os turnos</button><button class="btn small" type="button" id="copySheet">Copiar resumo</button></div>
     <p class="hint" id="copyMsg" aria-live="polite"></p>`;
   $('#dlPdf').onclick = () => { try { download(buildPDF(sheetDoc()), fileBase() + '.pdf'); $('#copyMsg').textContent = 'PDF gerado.'; } catch (e) { $('#copyMsg').textContent = 'Não foi possível gerar o PDF: ' + e.message; } };
   $('#dlDocx').onclick = () => { try { download(buildDOCX(sheetDoc()), fileBase() + '.docx'); $('#copyMsg').textContent = 'Documento do Word gerado.'; } catch (e) { $('#copyMsg').textContent = 'Não foi possível gerar o documento: ' + e.message; } };
+  $('#toPlay').onclick = () => { addChar(SH); location.hash = 'jogo'; };
   $('#toTurns').onclick = () => { T.list.push({name: SH.name || 'Herói', foe: false, vel: c.eff.VEL, mod: c.H.ini, d6: d6()}); T.example = false; save(); location.hash = 'turnos'; };
   $('#copySheet').onclick = () => {
     const txt = [`${SH.name} — ${(c.race || {}).name}, ${prof ? prof.name : ''}`, `PV ${c.pv} | PM ${c.pm} | DEF ${c.def} | MOV ${c.mov}`,
@@ -1562,7 +1609,8 @@ function sheetDoc(){
   const W = c.W, acc = W.acc != null ? c.eff.DES + W.acc : null;
   const gear = [['Arma', SH.weapon], ['Corpo', SH.body], ['Cabeça', SH.head], ['Escudo', SH.shield]].filter(x => x[1]);
   const S = [];
-  S.push({h: 'Recursos', kv: [['PV', c.pv], ['PM', c.pm], ['Defesa', c.def], ['Movimento', c.mov + ' Espaços'], ['Iniciativa / Taxa de Carga', (c.eff.VEL + c.H.ini) + ' + 1d6'], ['Redução de dano', `física RES ${c.eff.RES} · mágica SAB ${c.eff.SAB}`]]});
+  const LV = lvOf(SH), live = SH.live || null;
+  S.push({h: 'Recursos', kv: [['PV', live && live.pv != null ? `${live.pv} / ${c.pv}` : c.pv], ['PM', live && live.pm != null ? `${live.pm} / ${c.pm}` : c.pm], ['Defesa', c.def], ['Movimento', c.mov + ' Espaços'], ['Iniciativa / Taxa de Carga', (c.eff.VEL + c.H.ini) + ' + 1d6'], ['Redução de dano', `física RES ${c.eff.RES} · mágica SAB ${c.eff.SAB}`]]});
   S.push({h: 'Atributos', table: {head: ['Atributo', 'Base', 'Traços', 'Efetivo', 'Crescimento'], rows:
     ['FOR', 'RES', 'DES', 'INT', 'SAB', 'VEL'].map(k => [k, SH.pts[k], sgn(tr(k)), c.eff[k], Math.min(100, (SH.grow[k]|0) + (c.bonus[k] || 0)) + '%'])
       .concat([['PV (pontos)', SH.pts.PV, '', c.pv, Math.min(100, (SH.grow.PV|0) + (c.bonus.PV || 0)) + '%'], ['PM (pontos)', SH.pts.PM, '', c.pm, Math.min(100, (SH.grow.PM|0) + (c.bonus.PM || 0)) + '%']])
@@ -1570,12 +1618,16 @@ function sheetDoc(){
   S.push({h: 'Combate', kv: [['Arma', SH.weapon || '—'], ['Acerto', acc != null ? `1d20 + ${acc}` : '—'], ['Dano', W.dmg || '—'], ['Crítico', '20 natural dobra o dano bruto']]});
   S.push({h: `Raça · ${race.name}`, list: race.traits.map(t => [t.name, plain(t.text)])});
   S.push({h: `Profissão · ${prof.name}`, kv: [['Equipamentos permitidos', (prof.weapons || []).join(', ')]], list: ab ? [[`Habilidade inicial: ${ab.name}`, [costOf(ab) !== '—' ? 'Custo: ' + costOf(ab) : 'Custo: grátis', 'Tipo: ' + typeOf(ab), ...Object.entries(ab.meta).filter(([k]) => k !== 'Custo' && k !== 'Tipo').map(([k, v]) => k + ': ' + v)].join(' · ') + '. ' + plain(ab.effect || (ab.rolls || []).map(r => r.n + ': ' + plain(r.text)).join('; '))]] : []});
+  const learned = knownAbilities(SH).slice(1);
+  if (learned.length || LV.second) S.push({h: 'Progressão', kv: [['Nível', LV.level], ['Profissão secundária', LV.second ? (K.profs.find(p => p.id === LV.second) || {}).name : '—'], ['PH guardado', LV.ph]], list: learned.map(({prof: p, ab: a}) => [`${a.name} (${p.name})`, [costOf(a) !== '—' ? 'Custo: ' + costOf(a) : 'Custo: grátis', 'Tipo: ' + typeOf(a)].join(' · ') + '. ' + plain(a.effect || (a.rolls || []).map(r => r.n + ': ' + plain(r.text)).join('; '))])});
+  if (live && Object.keys(live.inv || {}).length) S.push({h: 'Inventário', kv: Object.entries(live.inv).map(([k, v]) => [k, '×' + v]).concat([['Ouro', (live.gold ?? 0) + ' gp']])});
+  if (live && (live.conds || []).length) S.push({h: 'Condições ativas', paras: [live.conds.join(', ')]});
   S.push({h: 'Equipamento', kv: gear.map(([k, v]) => [k, `${v} (${(K.items.find(x => x.name === v) || {}).price || 0} gp)`]).concat([['Ouro restante', (30 - c.cost) + ' gp'], ['Kit básico', '10 rações de viagem, cantil com 2 litros, mochila de 20 itens']])});
-  S.push({h: 'Traços e conhecimentos', kv: [['Defeitos', `${c.negSum} pontos`], ['Qualidades', `${c.posSum - (SH.knowPts|0)} pontos`], ['Conhecimentos', `${SH.knowPts|0} pontos`]]});
+  S.push({h: 'Traços e conhecimentos', kv: [['Defeitos', `${c.negSum} pontos`], ['Qualidades', `${c.posSum - (SH.knowPts|0)} pontos`], ['Conhecimentos', `${(SH.knowPts|0) + (LV.know|0)} pontos`]]});
   if ((SH.notes || '').trim()) S.push({h: 'Anotações', paras: SH.notes.split(/\n+/).map(s => s.trim()).filter(Boolean)});
   S.push({h: 'Suporte', kv: [['Companheiros', 'Ranking D inicial (20% de chance de assistência)']]});
   if (c.warns.length) S.push({h: 'Avisos da calculadora', paras: c.warns});
-  return {title: SH.name || 'Personagem', sub: `${race.name} · ${prof.name} · Nível 1`, sections: S};
+  return {title: SH.name || 'Personagem', sub: `${race.name} · ${prof.name} · Nível ${LV.level}`, sections: S};
 }
 function fileBase(){ return ('Ficha - ' + (SH.name || 'Personagem')).replace(/[\\/:*?"<>|]+/g, '').trim(); }
 function download(blob, name){
@@ -1713,6 +1765,350 @@ function buildDOCX(doc){
   ]);
 }
 
+
+/* ================= Jogadores (pasta fichas/ no GitHub) ================= */
+const slugify = s => fold(s || 'personagem').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'personagem';
+function withSheet(sheet, fn){ const old = SH; SH = JSON.parse(JSON.stringify(sheet)); try { return fn(); } finally { SH = old; } }
+const sheetFile = s => new Blob([JSON.stringify({app: 'atlas-de-kairos', v: 1, sheet: s}, null, 1)], {type: 'application/json'});
+function readSheetFiles(files){
+  return Promise.all(Array.from(files).map(f => f.text().then(t => { const j = JSON.parse(t); const s = j.sheet || j; if (!s || !s.pts || !s.soc) throw new Error(f.name + ' não é uma ficha do Atlas'); return s; })));
+}
+/* Onde está o site: usuario.github.io/repositorio → repositório usuario/repositorio */
+function ghRepo(){
+  if (window.KAIROS_REPO) return window.KAIROS_REPO;
+  const h = location.hostname;
+  if (!/\.github\.io$/i.test(h)) return null;
+  const owner = h.split('.')[0], seg = location.pathname.split('/').filter(Boolean)[0];
+  return owner + '/' + (seg && !/\.html?$/i.test(seg) ? seg : owner + '.github.io');
+}
+const MESA = {list: [], state: 'idle', error: '', at: 0, promise: null};
+function loadMesa(force){
+  if (MESA.promise && !force) return MESA.promise;
+  if (!force && MESA.state === 'ok' && Date.now() - MESA.at < 60000) return Promise.resolve(MESA.list);
+  const repo = ghRepo();
+  if (!repo) { MESA.state = 'local'; MESA.list = []; return Promise.resolve([]); }
+  MESA.state = 'loading';
+  const base = location.pathname.replace(/[^/]*$/, '');
+  MESA.promise = fetch(`https://api.github.com/repos/${repo}/contents/fichas?t=${Date.now()}`, {headers: {Accept: 'application/vnd.github+json'}})
+    .then(r => { if (r.status === 404) return []; if (!r.ok) throw new Error(r.status === 403 ? 'limite de consultas do GitHub atingido; tente de novo em alguns minutos' : 'GitHub respondeu ' + r.status); return r.json(); })
+    .then(files => Promise.all((Array.isArray(files) ? files : []).filter(f => f.type === 'file' && /\.json$/i.test(f.name))
+      .map(f => fetch(base + 'fichas/' + encodeURIComponent(f.name) + '?v=' + (f.sha || Date.now()), {cache: 'no-store'}).then(r => r.ok ? r.json() : null).then(j => j && (j.sheet || j)).catch(() => null))))
+    .then(arr => {
+      const used = {};
+      MESA.list = arr.filter(s => s && s.pts && s.soc).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt'))
+        .map(s => { let id = slugify(s.name); used[id] = (used[id] || 0) + 1; if (used[id] > 1) id += '-' + used[id]; return {id, sheet: s}; });
+      MESA.state = 'ok'; MESA.at = Date.now(); MESA.error = ''; MESA.promise = null; return MESA.list;
+    })
+    .catch(err => { MESA.state = 'error'; MESA.error = err.message; MESA.promise = null; return MESA.list; });
+  return MESA.promise;
+}
+const tableSheets = () => MESA.list;
+function renderPlayers(){
+  page.innerHTML = banner('A mesa', 'Jogadores', 'Os personagens da campanha. Cada ficha abre numa página própria e pode ser baixada em PDF ou Word.', 'image35', 'center 30%') + `
+  <div class="sec-head" style="margin-top:-8px"><p class="hint" id="mesaState" style="margin:0" aria-live="polite"></p><button class="btn small" type="button" id="mesaReload">Atualizar lista</button></div>
+  <div id="mesaGrid"></div>
+  <section class="sec">
+    ${secHead('Para o Historiador', 'Como publicar as fichas')}
+    <div class="panel prose rise">
+      <ol>
+        <li>Cada jogador preenche a <a href="#ficha">Calculadora de ficha</a>, clica em <b>Salvar arquivo da ficha</b> e te manda o <b>.json</b>.</li>
+        <li>No repositório do GitHub, crie uma pasta chamada <b>fichas</b>: em <b>Add file › Upload files</b>, arraste uma pasta <b>fichas</b> com os .json dentro. Ou, em <b>Add file › Create new file</b>, escreva <code class="formula">fichas/nome.json</code> e cole o conteúdo do arquivo.</li>
+        <li>Para <b>atualizar</b> uma ficha, entre na pasta fichas, use <b>Add file › Upload files</b> e envie o .json novo <b>com o mesmo nome</b>. Ele substitui o antigo.</li>
+        <li>Para <b>tirar</b> um personagem, abra o .json dele no GitHub e apague o arquivo (menu <b>⋯ › Delete file</b>).</li>
+      </ol>
+      <p>A página lê a pasta sozinha. Depois de cada envio, espere um ou dois minutos e toque em <b>Atualizar lista</b>.</p>
+    </div>
+  </section>`;
+  $('#mesaReload').onclick = () => { fillMesa(true); };
+  fillMesa(false);
+}
+function fillMesa(force){
+  const st = $('#mesaState'), grid = $('#mesaGrid'); if (!st) return;
+  st.textContent = 'Carregando as fichas do GitHub…';
+  if (!MESA.list.length) grid.innerHTML = '';
+  loadMesa(force).then(list => {
+    if (!$('#mesaGrid')) return;
+    if (MESA.state === 'local') { st.textContent = ''; grid.innerHTML = `<div class="panel empty rise">As fichas da mesa aparecem quando o Atlas está publicado no GitHub Pages, lidas da pasta <b>fichas</b> do repositório.</div>`; return; }
+    st.textContent = MESA.state === 'error' ? 'Não consegui ler as fichas: ' + MESA.error + '.' : `${list.length} ${list.length === 1 ? 'personagem' : 'personagens'} na pasta fichas.`;
+    grid.innerHTML = list.length ? `<div class="beast-grid" style="grid-template-columns:repeat(auto-fill,minmax(260px,1fr))">${list.map((x, i) => {
+      const c = withSheet(x.sheet, sheetCalc), r = K.races.find(r => r.id === x.sheet.race), p = K.profs.find(p => p.id === x.sheet.prof);
+      return `<a class="race-card panel tilt rise" style="--i:${i}" href="#jogador-${x.id}">
+        <div class="pic" style="background-image:url('${img(p ? p.img : 'image35', 1)}');background-position:center 20%"></div>
+        <div class="in"><h3>${esc(x.sheet.name || 'Sem nome')} <span class="lvl" style="font-size:.7rem;vertical-align:middle">Nv ${lvOf(x.sheet).level}</span></h3><p>${esc([x.sheet.player ? 'Jogador: ' + x.sheet.player : '', (r ? r.name : '') + ' · ' + (p ? p.name : '')].filter(Boolean).join(' · '))}</p>
+        <div class="mstats"><div><b>${c.pv}</b><span>PV</span></div><div><b>${c.pm}</b><span>PM</span></div><div><b>${c.def}</b><span>DEF</span></div><div><b>${c.eff.VEL}</b><span>VEL</span></div></div></div></a>`; }).join('')}</div>`
+      : (MESA.state === 'ok' ? `<div class="panel empty rise">A pasta <b>fichas</b> ainda não tem nenhum .json. Veja abaixo como publicar.</div>` : '');
+    bindTilt(grid);
+  });
+}
+function sheetHTML(d){
+  return d.sections.map((s, i) => `<article class="prose panel rise ${s.table ? 'wide' : ''}" style="--i:${i}"><h2>${esc(s.h)}</h2>
+    ${s.kv ? `<div class="lines" style="margin-top:0">${s.kv.map(([k, v]) => `<div><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join('')}</div>` : ''}
+    ${s.table ? `<div class="tbl"><table><thead><tr>${s.table.head.map(h => `<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${s.table.rows.map(r => `<tr>${r.map((v, j) => `<td>${j === 3 ? `<b>${esc(v)}</b>` : esc(v)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>` : ''}
+    ${s.list ? s.list.map(([t, dd]) => `<p><b>${esc(t)}</b><br>${esc(dd)}</p>`).join('') : ''}
+    ${s.paras ? s.paras.map(p => `<p>${esc(p)}</p>`).join('') : ''}</article>`).join('');
+}
+function renderPlayer(id){
+  const x = MESA.list.find(x => x.id === id);
+  if (!x) {
+    if (MESA.state !== 'ok' && MESA.state !== 'local') { page.innerHTML = '<div class="panel empty">Carregando a ficha…</div>'; loadMesa(false).then(() => { if (location.hash.slice(1) === 'jogador-' + id) { if (MESA.list.some(y => y.id === id)) renderPlayer(id); else renderPlayers(); bindTilt(page); } }); return; }
+    return renderPlayers();
+  }
+  const d = withSheet(x.sheet, sheetDoc), c = withSheet(x.sheet, sheetCalc), p = K.profs.find(p => p.id === x.sheet.prof);
+  const doc = {...d, sections: d.sections.filter(s => s.h !== 'Avisos da calculadora')};
+  page.innerHTML = `<nav class="crumbs rise"><a href="#jogadores">Jogadores</a><span>›</span><span>${esc(x.sheet.name || 'Sem nome')}</span></nav>
+  <section class="prof-top">
+    <div class="portrait tilt rise" style="background-image:url('${img(p ? p.img : 'image35')}')" role="img" aria-label="${esc(p ? p.name : '')}"></div>
+    <div class="rise" style="--i:1">
+      <div class="eyebrow">${esc(x.sheet.player ? 'Jogador: ' + x.sheet.player : 'Personagem')}</div>
+      <h1 class="h-page">${esc(x.sheet.name || 'Sem nome')}</h1>
+      <p class="flavor" style="margin:0">${esc(d.sub)}</p>
+      <div class="big4" style="margin-top:18px;grid-template-columns:repeat(4,minmax(0,1fr))"><div><span>PV</span><b>${c.pv}</b></div><div><span>PM</span><b>${c.pm}</b></div><div><span>DEF</span><b>${c.def}</b></div><div><span>VEL</span><b>${c.eff.VEL}</b></div></div>
+      <div class="controls" style="margin-top:16px"><button class="btn small primary" type="button" id="pPdf">Baixar PDF</button><button class="btn small primary" type="button" id="pDocx">Baixar Word</button><button class="btn small primary" type="button" id="pPlay">Abrir em jogo</button><button class="btn small" type="button" id="pEdit">Editar uma cópia</button><button class="btn small" type="button" id="pTurn">Levar para os turnos</button></div>
+      <p class="hint" id="pMsg" aria-live="polite">“Editar uma cópia” leva esta ficha para a sua Calculadora de ficha, no lugar da que estiver lá.</p>
+    </div>
+  </section>
+  <div class="prose-grid sec">${sheetHTML(doc)}</div>`;
+  $('#pPdf').onclick = () => download(withSheet(x.sheet, () => buildPDF(sheetDoc())), withSheet(x.sheet, fileBase) + '.pdf');
+  $('#pDocx').onclick = () => download(withSheet(x.sheet, () => buildDOCX(sheetDoc())), withSheet(x.sheet, fileBase) + '.docx');
+  $('#pTurn').onclick = () => { T.list.push({name: x.sheet.name || 'Herói', foe: false, vel: c.eff.VEL, mod: c.H.ini, d6: d6()}); T.example = false; save(); location.hash = 'turnos'; };
+  $('#pPlay').onclick = () => { addChar(x.sheet); location.hash = 'jogo'; };
+  $('#pEdit').onclick = () => { SH = JSON.parse(JSON.stringify(x.sheet)); SH.example = false; saveSheet(); location.hash = 'ficha'; };
+}
+
+
+/* ================= Progressão e estado de jogo da ficha ================= */
+const ALL9 = ['FOR', 'RES', 'DES', 'INT', 'SAB', 'VEL', 'BRA', 'FÉ', 'CAR'];
+function lvOf(s){
+  const L = s.lv || {};
+  return {level: L.level || 1, gains: L.gains || {}, pos: L.pos || {}, negRed: L.negRed || {}, know: L.know || 0, abilities: L.abilities || [], second: L.second || null, ph: L.ph || 0, hpMode: L.hpMode || 'ponto', hist: L.hist || []};
+}
+function knownAbilities(s){
+  const out = [], P = id => K.profs.find(p => p.id === id);
+  const main = P(s.prof);
+  if (main) { const a = main.abilities.find(a => a.id === s.ability) || main.abilities[0]; if (a) out.push({prof: main, ab: a}); }
+  (s.lv && s.lv.abilities || []).forEach(x => { const p = P(x.prof); const a = p && p.abilities.find(a => a.id === x.id); if (a && !out.some(o => o.ab.id === a.id && o.prof.id === p.id)) out.push({prof: p, ab: a}); });
+  return out;
+}
+const pmCost = a => { const m = /^(\d+)\s*PM/.exec(costOf(a)); return m ? +m[1] : 0; };
+const CONS = {
+  'Poção': {pv: 5}, 'Éter': {pm: 5}, 'Elixir': {full: true}, 'Pluma de Fênix': {revive: true}, 'Maçã Dourada': {clearAll: true},
+  'Antídoto': {cure: 'Envenenado'}, 'Água Sagrada': {cure: 'Amaldiçoado'}, 'Agulha Dourada': {cure: 'Petrificado'}, 'Beijo de Donzela': {cure: 'Sono'},
+  'Colírio': {cure: 'Cego'}, 'Erva Ecoante': {cure: 'Mudo'}, 'Refresco': {cure: 'Chamuscado'},
+  'Tônico de Gigante': {buff: 'FOR'}, 'Tônico de Ferro': {buff: 'RES'}, 'Tônico dos Atletas': {buff: 'DES'}, 'Tônico das Bruxas': {buff: 'INT'}, 'Tônico dos Anciões': {buff: 'SAB'}, 'Tônico dos Velocistas': {buff: 'VEL'},
+};
+const NEG_CONDS = CONDS.map(c => c[0]), POS_CONDS = POS.map(c => c[0]);
+
+/* local roster of characters being played */
+let JG = store.get('kairos-jogo', null) || {chars: [], cur: 0};
+const saveJG = () => store.set('kairos-jogo', JG);
+const curChar = () => JG.chars[JG.cur] || null;
+function liveOf(s){
+  const c = withSheet(s, sheetCalc);
+  s.live = s.live || {};
+  const L = s.live;
+  if (L.pv == null) L.pv = c.pv; if (L.pm == null) L.pm = c.pm;
+  if (L.gold == null) L.gold = 30 - c.cost;
+  L.inv = L.inv || {}; L.conds = L.conds || []; L.buffs = L.buffs || {}; L.insp = L.insp || 0; L.log = L.log || [];
+  L.pv = Math.min(L.pv, c.pv); L.pm = Math.min(L.pm, c.pm);
+  return {c, L};
+}
+function addChar(sheet){
+  const s = JSON.parse(JSON.stringify(sheet)); delete s.example;
+  const k = JG.chars.findIndex(x => (x.name || '') === (s.name || '') && (x.player || '') === (s.player || ''));
+  if (k >= 0) JG.chars[k] = s; else JG.chars.push(s);
+  JG.cur = k >= 0 ? k : JG.chars.length - 1; saveJG();
+}
+function logJ(L, txt){ L.log.unshift({t: new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'}), txt}); L.log = L.log.slice(0, 40); }
+
+function renderPlay(){
+  const s = curChar();
+  page.innerHTML = banner('Mesa', 'Em jogo', 'Acompanhe a ficha durante a sessão: PV, PM, itens, condições, descansos e subir de nível. Tudo fica salvo neste aparelho.', 'image4', 'center 40%') + `
+  <div class="sec-head" style="margin-top:-8px">
+    <div class="chips" id="jgTabs">${JG.chars.map((x, i) => `<button class="chip" type="button" data-i="${i}" aria-pressed="${i === JG.cur}">${esc(x.name || 'Sem nome')}<span class="c">Nv ${lvOf(x).level}</span></button>`).join('')}</div>
+    <div class="controls"><button class="btn small" type="button" id="jgFromCalc">+ Da calculadora</button><label class="btn small" for="jgOpen" style="cursor:pointer">+ Abrir .json</label><input id="jgOpen" type="file" accept=".json,application/json" hidden>${MESA.list.length ? `<select id="jgFromMesa" class="btn small" style="padding:7px 12px"><option value="">+ Da página Jogadores…</option>${MESA.list.map(x => `<option value="${x.id}">${esc(x.sheet.name)}</option>`).join('')}</select>` : ''}</div>
+  </div>
+  <div id="jgBody"></div>`;
+  $('#jgTabs').onclick = e => { const b = e.target.closest('[data-i]'); if (!b) return; JG.cur = +b.dataset.i; saveJG(); renderPlay(); bindTilt(page); };
+  $('#jgFromCalc').onclick = () => { addChar(SH); renderPlay(); bindTilt(page); };
+  $('#jgOpen').onchange = e => readSheetFiles(e.target.files).then(arr => { arr.forEach(addChar); renderPlay(); bindTilt(page); }).catch(err => alertBox(err.message));
+  const fm = $('#jgFromMesa'); if (fm) fm.onchange = e => { const x = MESA.list.find(y => y.id === e.target.value); if (x) { addChar(x.sheet); renderPlay(); bindTilt(page); } };
+  if (!s) { $('#jgBody').innerHTML = `<div class="panel empty rise">Nenhuma ficha em jogo neste aparelho. Traga uma da <a href="#ficha">Calculadora de ficha</a>, abra um arquivo .json ou escolha um personagem da página <a href="#jogadores">Jogadores</a>.</div>`; return; }
+  fillPlay();
+}
+function alertBox(msg){ const b = $('#jgMsg'); if (b) b.textContent = msg; }
+function fillPlay(){
+  const s = curChar(); const {c, L} = liveOf(s); const lv = lvOf(s); saveJG();
+  const prof = K.profs.find(p => p.id === s.prof), race = K.races.find(r => r.id === s.race), second = lv.second && K.profs.find(p => p.id === lv.second);
+  const pct = (a, b) => Math.max(0, Math.min(100, b ? a / b * 100 : 0));
+  const effB = k => c.eff[k] + (L.buffs[k] || 0);
+  const down = L.pv <= 0;
+  const invNames = Object.keys(L.inv).filter(n => L.inv[n] > 0);
+  const known = knownAbilities(s);
+  $('#jgBody').innerHTML = `
+  <section class="prof-top" style="grid-template-columns:minmax(160px,220px) minmax(0,1fr);align-items:start">
+    <div class="portrait rise" style="background-image:url('${img(prof ? prof.img : 'image35')}')" role="img" aria-label="${esc(prof ? prof.name : '')}"></div>
+    <div class="rise" style="--i:1">
+      <div class="eyebrow">${esc(s.player ? 'Jogador: ' + s.player : 'Personagem')}</div>
+      <h1 class="h-page" style="margin-bottom:0">${esc(s.name || 'Sem nome')} <span class="lvl" style="font-size:1rem;vertical-align:middle">Nível ${lv.level}</span></h1>
+      <p class="flavor" style="margin:4px 0 14px">${esc((race || {}).name || '')} · ${esc(prof ? prof.name : '')}${second ? ' / ' + esc(second.name) : ''}</p>
+      <div class="vbar"><div class="vtop"><span>PV</span><b>${L.pv} / ${c.pv}</b></div><span class="track"><i style="width:${pct(L.pv, c.pv)}%;background:${L.pv / c.pv <= .3 ? 'linear-gradient(90deg,#8e2f22,var(--foe))' : 'linear-gradient(90deg,#2f7d55,var(--hero))'}"></i></span></div>
+      <div class="vbar"><div class="vtop"><span>PM</span><b>${L.pm} / ${c.pm}</b></div><span class="track"><i style="width:${pct(L.pm, c.pm)}%;background:linear-gradient(90deg,#2b4f8f,var(--ether))"></i></span></div>
+      ${down ? `<div class="warn" style="margin-top:10px"><b>Caído a 0 PV.</b> Faça um Teste de Morte (1d6) no início de cada turno: 6 levanta com 1 PV, 1 morre. <button class="btn small" type="button" id="jgDeath" style="margin-left:6px">Rolar Teste de Morte</button> <span id="jgDeathOut"></span></div>` : ''}
+      <div class="dmg">
+        <input id="jgN" type="number" min="0" value="5" aria-label="Quantidade">
+        <select id="jgType" aria-label="Tipo de dano"><option value="d">Dano direto</option><option value="f">Dano físico (− RES ${effB('RES')})</option><option value="m">Dano mágico (− SAB ${effB('SAB')})</option></select>
+        <button class="btn small" type="button" data-a="dmg" style="border-color:rgba(226,114,91,.6)">Sofrer dano</button>
+        <button class="btn small" type="button" data-a="heal">Curar PV</button>
+        <button class="btn small" type="button" data-a="spend" style="border-color:rgba(134,182,255,.5)">Gastar PM</button>
+        <button class="btn small" type="button" data-a="mana">Recuperar PM</button>
+      </div>
+      <p class="hint" id="jgMsg" aria-live="polite"></p>
+    </div>
+  </section>
+
+  <div class="playgrid sec" style="margin-top:28px">
+    <article class="prose panel rise"><h2>Atributos agora</h2>
+      <div class="effrow" style="grid-template-columns:repeat(3,minmax(0,1fr))">${ALL9.map(k => `<div><span>${k}</span><b>${effB(k)}${L.buffs[k] ? `<small style="color:var(--hero)"> +${L.buffs[k]}</small>` : ''}</b></div>`).join('')}</div>
+      <div class="lines"><div><span>Defesa</span><b>${c.def + (L.buffs.DES || 0)}</b></div><div><span>Movimento</span><b>${c.mov}</b></div><div><span>Iniciativa / Taxa</span><b>${effB('VEL') + c.H.ini} + 1d6</b></div><div><span>Ouro</span><b><button class="mini" type="button" data-gold="-1" aria-label="Menos 1 gp">−</button> ${L.gold} gp <button class="mini" type="button" data-gold="1" aria-label="Mais 1 gp">+</button></b></div></div>
+      ${Object.keys(L.buffs).length ? `<p class="hint">Tônicos ativos até o fim do combate. <button class="btn small" type="button" data-a="endfight">Fim do combate</button></p>` : ''}
+    </article>
+    <article class="prose panel rise" style="--i:1"><h2>Inspiração e descanso</h2>
+      <div class="pips" id="jgInsp" aria-label="Pontos de Inspiração">${[1, 2, 3].map(n => `<button type="button" data-n="${n}" aria-pressed="${L.insp >= n}" aria-label="${n} ponto(s) de Inspiração">✦</button>`).join('')}<span class="hint" style="margin:0">Máximo 3. Gaste 1 para rerrolar um teste e ficar com o melhor.</span></div>
+      <div class="controls" style="margin-top:14px"><button class="btn small" type="button" data-a="short">Descanso curto (1d10 PV e PM)</button><button class="btn small" type="button" data-a="long">Descanso longo (tudo)</button></div>
+      <h3>Condições</h3>
+      <div class="chips" id="jgConds">${NEG_CONDS.map(n => `<button class="chip cond-n" type="button" data-c="${n}" aria-pressed="${L.conds.includes(n)}">${n}</button>`).join('')}${POS_CONDS.map(n => `<button class="chip cond-p" type="button" data-c="${n}" aria-pressed="${L.conds.includes(n)}">${n}</button>`).join('')}</div>
+      ${L.conds.length ? `<ul class="tlist" style="margin-top:10px">${L.conds.map(n => { const d = CONDS.find(x => x[0] === n) || POS.find(x => x[0] === n); return d ? `<li><b>${n}</b>${esc(plain(d[1]))}</li>` : ''; }).join('')}</ul>` : ''}
+    </article>
+    <article class="prose panel rise wide" style="--i:2"><h2>Inventário</h2>
+      <div class="dmg" style="margin-top:0">
+        <select id="jgItem" aria-label="Item">${K.items.filter(x => ['Consumíveis', 'Pergaminhos', 'Munição', 'Aventura'].includes(x.group)).map(x => `<option>${esc(x.name)}</option>`).join('')}</select>
+        <input id="jgQ" type="number" min="1" value="1" aria-label="Quantidade" style="width:70px">
+        <button class="btn small" type="button" data-a="addItem">Adicionar</button><button class="btn small" type="button" data-a="buyItem">Comprar (desconta ouro)</button>
+      </div>
+      ${invNames.length ? `<div class="inv">${invNames.map(n => { const it = K.items.find(x => x.name === n) || {desc: ''}; return `<div class="invrow"><div><b>${esc(n)}</b> <span class="c">×${L.inv[n]}</span><small>${esc(it.desc)}</small></div><div class="controls"><button class="btn small primary" type="button" data-use="${esc(n)}">Usar</button><button class="mini" type="button" data-inv="${esc(n)}" data-d="-1" aria-label="Tirar 1">−</button><button class="mini" type="button" data-inv="${esc(n)}" data-d="1" aria-label="Pôr 1">+</button></div></div>`; }).join('')}</div>` : '<p class="hint">Mochila vazia. Adicione poções, éteres e outros itens acima.</p>'}
+    </article>
+    <article class="prose panel rise wide" style="--i:3"><h2>Habilidades</h2>
+      <div class="abil-grid">${known.map(({prof: p, ab: a}) => { const t = typeOf(a), cost = pmCost(a); return `<div class="abil panel" style="--c:var(${typeVar(t)});padding:16px 18px"><div class="top"><div><h3>${esc(a.name)}</h3><div class="type"><i class="dot"></i>${esc(t)} · ${esc(p.name)}</div></div>${cost ? `<button class="btn small" type="button" data-cast="${cost}" data-n="${esc(a.name)}">Usar · ${cost} PM</button>` : `<span class="cost free">${esc(costOf(a) === '—' ? 'Grátis' : costOf(a))}</span>`}</div>${a.effect ? `<p class="eff" style="font-size:.9rem;color:var(--silver)">${a.effect}</p>` : ''}</div>`; }).join('')}</div>
+    </article>
+    <article class="prose panel rise" style="--i:4"><h2>Subir de nível</h2>
+      <p>Nível atual <b>${lv.level}</b>. Ao subir: 1d100 para cada atributo contra a taxa de crescimento, 1 Ponto de Habilidade e 1 Ponto de Desenvolvimento.${lv.ph ? ` Você tem <b>${lv.ph} PH guardado</b>.` : ''}</p>
+      <div class="field" style="margin:8px 0 12px"><label for="jgHp">Crescimento de PV e PM</label><select id="jgHp"><option value="ponto" ${lv.hpMode === 'ponto' ? 'selected' : ''}>+1 ponto investido (+3 PV ou PM)</option><option value="pv" ${lv.hpMode === 'pv' ? 'selected' : ''}>+1 PV ou PM</option></select></div>
+      <div class="field" style="margin-bottom:12px"><span class="lb">Anéis equipados (+20% de crescimento, até 2)</span><div class="chips" id="jgRings" style="margin-top:4px">${K.items.filter(x => x.group === 'Anéis').map(x => `<button class="chip" type="button" data-r="${esc(x.name)}" aria-pressed="${(s.rings || []).includes(x.name)}">${esc(x.name.replace('Anel da ', '').replace('Anel de ', ''))}</button>`).join('')}</div></div>
+      <button class="btn primary" type="button" id="jgLevel">Subir para o nível ${lv.level + 1}</button>
+    </article>
+    <article class="prose panel rise" style="--i:5"><h2>Registro</h2>
+      <div class="log" style="max-height:260px">${L.log.length ? L.log.map(e => `<div><span style="color:var(--faint)">${e.t}</span> ${e.txt}</div>`).join('') : '<div>Nada registrado ainda.</div>'}</div>
+    </article>
+  </div>
+  <div class="controls sec" style="margin-top:28px"><button class="btn primary" type="button" id="jgSave">Salvar arquivo da ficha (.json)</button><button class="btn" type="button" id="jgPdf">Baixar PDF</button><button class="btn" type="button" id="jgTurn">Levar para os turnos</button><button class="btn" type="button" id="jgDel">Tirar desta lista</button></div>
+  <p class="hint">O .json salvo aqui inclui o nível e o estado atual. Envie para a pasta <b>fichas</b> do GitHub, com o mesmo nome, para atualizar a página Jogadores.</p>
+  <div id="lvPanel"></div>`;
+  bindPlay(s, c, L, lv);
+}
+function bindPlay(s, c, L, lv){
+  const body = $('#jgBody');
+  const n = () => Math.max(0, parseInt($('#jgN').value) || 0);
+  const res = k => c.eff[k] + (L.buffs[k] || 0);
+  const done = (msg) => { saveJG(); fillPlay(); if (msg) alertBox(msg); };
+  body.onclick = e => {
+    const a = e.target.closest('[data-a]'); const act = a && a.dataset.a;
+    if (act === 'dmg') { const raw = n(), type = $('#jgType').value; const red = type === 'f' ? res('RES') : type === 'm' ? res('SAB') : 0; const dmg = Math.max(0, raw - red); const before = L.pv; L.pv = Math.max(0, L.pv - dmg);
+      const massive = before - dmg <= -c.pv;
+      logJ(L, `Sofreu ${dmg} de dano${red ? ` (${raw} − ${red})` : ''}. PV ${before} → ${L.pv}.${massive ? ' <b style="color:var(--foe)">Dano massivo: morte instantânea.</b>' : ''}`);
+      return done(massive ? 'Dano massivo: o dano restante passou do PV máximo. Pela regra, é morte instantânea.' : (L.pv === 0 ? 'Caiu a 0 PV: fica Caído e faz Teste de Morte a cada turno.' : `−${dmg} PV`)); }
+    if (act === 'heal') { const b = L.pv; L.pv = Math.min(c.pv, L.pv + n()); logJ(L, `Curou ${L.pv - b} PV.`); return done(); }
+    if (act === 'spend') { if (n() > L.pm) return alertBox('PM insuficiente.'); L.pm -= n(); logJ(L, `Gastou ${n()} PM.`); return done(); }
+    if (act === 'mana') { const b = L.pm; L.pm = Math.min(c.pm, L.pm + n()); logJ(L, `Recuperou ${L.pm - b} PM.`); return done(); }
+    if (act === 'short') { const a1 = d10(), a2 = d10(); const b1 = L.pv, b2 = L.pm; L.pv = Math.min(c.pv, L.pv + a1); L.pm = Math.min(c.pm, L.pm + a2); logJ(L, `Descanso curto: 1d10 = ${a1} PV (${b1} → ${L.pv}), 1d10 = ${a2} PM (${b2} → ${L.pm}).`); return done(`Descanso curto: +${L.pv - b1} PV, +${L.pm - b2} PM.`); }
+    if (act === 'long') { L.pv = c.pv; L.pm = c.pm; L.conds = L.conds.filter(x => x === 'Exausto'); L.buffs = {}; logJ(L, 'Descanso longo: PV e PM cheios, condições removidas.'); return done('Descanso longo: tudo recuperado.'); }
+    if (act === 'endfight') { L.buffs = {}; logJ(L, 'Fim do combate: tônicos encerrados.'); return done(); }
+    if (act === 'addItem' || act === 'buyItem') { const name = $('#jgItem').value, q = Math.max(1, parseInt($('#jgQ').value) || 1); const it = K.items.find(x => x.name === name);
+      if (act === 'buyItem') { const cost = it.price * q; if (cost > L.gold) return alertBox(`Faltam ${cost - L.gold} gp.`); L.gold -= cost; }
+      L.inv[name] = (L.inv[name] || 0) + q; logJ(L, `${act === 'buyItem' ? 'Comprou' : 'Ganhou'} ${q}× ${esc(name)}${act === 'buyItem' ? ` por ${it.price * q} gp` : ''}.`); return done(); }
+    const g = e.target.closest('[data-gold]'); if (g) { L.gold = Math.max(0, L.gold + +g.dataset.gold); return done(); }
+    const iv = e.target.closest('[data-inv]'); if (iv) { const k = iv.dataset.inv; L.inv[k] = Math.max(0, (L.inv[k] || 0) + +iv.dataset.d); if (!L.inv[k]) delete L.inv[k]; return done(); }
+    const u = e.target.closest('[data-use]'); if (u) { const k = u.dataset.use, fx = CONS[k] || {}; let msg = `Usou ${k}.`;
+      if (fx.pv) { const b = L.pv; L.pv = Math.min(c.pv, L.pv + fx.pv); msg = `${k}: +${L.pv - b} PV.`; }
+      if (fx.pm) { const b = L.pm; L.pm = Math.min(c.pm, L.pm + fx.pm); msg = `${k}: +${L.pm - b} PM.`; }
+      if (fx.full) { L.pv = c.pv; L.pm = c.pm; msg = `${k}: PV e PM cheios.`; }
+      if (fx.revive) { if (L.pv > 0) return alertBox('A Pluma de Fênix é para um aliado caído a 0 PV.'); L.pv = c.pv; msg = `${k}: voltou com todo o PV.`; }
+      if (fx.clearAll) { L.conds = L.conds.filter(x => POS_CONDS.includes(x)); msg = `${k}: condições negativas curadas.`; }
+      if (fx.cure) { L.conds = L.conds.filter(x => x !== fx.cure); msg = `${k}: ${fx.cure} curado.`; }
+      if (fx.buff) { L.buffs[fx.buff] = 5; msg = `${k}: +5 ${fx.buff} até o fim do combate.`; }
+      L.inv[k]--; if (!L.inv[k]) delete L.inv[k]; logJ(L, msg); return done(msg); }
+    const cast = e.target.closest('[data-cast]'); if (cast) { const cst = +cast.dataset.cast; if (cst > L.pm) return alertBox('PM insuficiente para ' + cast.dataset.n + '.'); L.pm -= cst; logJ(L, `Usou ${esc(cast.dataset.n)} (−${cst} PM).`); return done(`${cast.dataset.n}: −${cst} PM.`); }
+    const cd = e.target.closest('[data-c]'); if (cd) { const k = cd.dataset.c; L.conds = L.conds.includes(k) ? L.conds.filter(x => x !== k) : [...L.conds, k]; logJ(L, `${L.conds.includes(k) ? 'Ganhou' : 'Perdeu'} a condição ${k}.`); return done(); }
+    const ip = e.target.closest('#jgInsp [data-n]'); if (ip) { const v = +ip.dataset.n; L.insp = L.insp === v ? v - 1 : v; return done(); }
+    const rg = e.target.closest('[data-r]'); if (rg) { s.rings = s.rings || []; const k = rg.dataset.r; s.rings = s.rings.includes(k) ? s.rings.filter(x => x !== k) : [...s.rings, k].slice(-2); return done(); }
+  };
+  const dth = $('#jgDeath'); if (dth) dth.onclick = ev => { const v = d6(); const out = $('#jgDeathOut'); if (v === 6) { L.pv = 1; logJ(L, 'Teste de Morte: 6, recuperação heroica com 1 PV.'); done('6: recuperação heroica, volta com 1 PV.'); } else { out.innerHTML = v === 1 ? '<b style="color:var(--foe)">1: morte imediata.</b>' : `<b>${v}</b>: estável, mas inerte.`; logJ(L, `Teste de Morte: ${v}${v === 1 ? ' (morte)' : ''}.`); saveJG(); } };
+  $('#jgHp').onchange = e => { s.lv = {...lvOf(s), hpMode: e.target.value}; done(); };
+  $('#jgSave').onclick = () => download(sheetFile(s), withSheet(s, fileBase) + '.json');
+  $('#jgPdf').onclick = () => download(withSheet(s, () => buildPDF(sheetDoc())), withSheet(s, fileBase) + '.pdf');
+  $('#jgTurn').onclick = () => { T.list.push({name: s.name || 'Herói', foe: false, vel: c.eff.VEL + (L.buffs.VEL || 0), mod: c.H.ini, d6: d6()}); T.example = false; save(); location.hash = 'turnos'; };
+  $('#jgDel').onclick = ev => { if (ev.currentTarget.dataset.sure) { JG.chars.splice(JG.cur, 1); JG.cur = 0; saveJG(); renderPlay(); bindTilt(page); } else { ev.currentTarget.dataset.sure = '1'; ev.currentTarget.textContent = 'Toque de novo para confirmar'; } };
+  $('#jgLevel').onclick = () => openLevelUp(s, c);
+}
+const d10 = () => 1 + Math.floor(Math.random() * 10);
+const d100 = () => 1 + Math.floor(Math.random() * 100);
+
+/* ---------- Level up wizard ---------- */
+function openLevelUp(s, c){
+  const lv = lvOf(s), next = lv.level + 1;
+  const rate = k => Math.min(100, (s.grow[k]|0) + (c.bonus[k] || 0) + (c.ring[k] || 0));
+  const rolls = {}; ATTR8.forEach(k => { const r = d100(); rolls[k] = {r, t: rate(k), up: r <= rate(k)}; });
+  const main = K.profs.find(p => p.id === s.prof);
+  const owned = new Set(knownAbilities(s).map(x => x.prof.id + '/' + x.ab.id));
+  const needSecond = next >= 3 && !lv.second;
+  const panel = $('#lvPanel');
+  panel.innerHTML = `<section class="panel lvbox rise" id="lvBox">
+    <div class="eyebrow">Subindo para o nível ${next}</div><h2 class="h-sec">Rolagens de crescimento</h2>
+    <div class="rolls8">${ATTR8.map((k, i) => `<div class="r8 ${rolls[k].up ? 'up' : ''}" style="--i:${i}"><span>${k}</span><b class="rv" data-v="${rolls[k].r}">··</b><small>taxa ${rolls[k].t}%</small><em>${rolls[k].up ? (k === 'PV' || k === 'PM' ? (lv.hpMode === 'pv' ? '+1' : '+3') : '+1') : '—'}</em></div>`).join('')}</div>
+    ${needSecond ? `<h3>Profissão Secundária</h3><div class="field"><label for="lvSecond">No nível 3 você pode adotar uma segunda profissão (proficiência nas armas e acesso às habilidades dela por 1 PH).</label><select id="lvSecond"><option value="">Agora não</option>${K.profs.filter(p => p.id !== s.prof).map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select></div>` : ''}
+    <h3>Ponto de Habilidade ${lv.ph ? `(+${lv.ph} guardado)` : ''}</h3>
+    <div class="field"><label for="lvAb">Habilidade da profissão principal ou secundária custa 1 PH; de outra profissão, 2 PH.</label><select id="lvAb"></select></div>
+    <h3>Ponto de Desenvolvimento</h3>
+    <div class="fields">
+      <div class="field"><label for="lvPd">O que melhorar</label><select id="lvPd"><option value="pos">+1 em uma Qualidade</option><option value="neg">Abrandar um Defeito em 1</option><option value="know">+1 em um Conhecimento</option></select></div>
+      <div class="field" id="lvPdAttrBox"><label for="lvPdAttr">Atributo</label><select id="lvPdAttr">${ALL9.map(k => `<option>${k}</option>`).join('')}</select></div>
+    </div>
+    <div class="controls" style="margin-top:18px"><button class="btn primary" type="button" id="lvOk">Confirmar nível ${next}</button><button class="btn" type="button" id="lvCancel">Cancelar</button></div>
+  </section>`;
+  const fillAbSel = () => {
+    const sec = (needSecond ? $('#lvSecond').value : lv.second) || null;
+    const bank = lv.ph + 1;
+    const opts = [];
+    K.profs.forEach(p => p.abilities.forEach(a => { if (owned.has(p.id + '/' + a.id)) return; const cost = (p.id === s.prof || p.id === sec) ? 1 : 2; if (cost <= bank) opts.push({p, a, cost}); }));
+    opts.sort((x, y) => x.cost - y.cost || (x.p.id === s.prof ? -1 : 0));
+    $('#lvAb').innerHTML = `<option value="">Guardar o ponto para o próximo nível</option>` + opts.map(o => `<option value="${o.p.id}/${o.a.id}/${o.cost}">${esc(o.p.name)} · ${esc(o.a.name)} (${o.cost} PH)</option>`).join('');
+  };
+  fillAbSel(); if (needSecond) $('#lvSecond').onchange = fillAbSel;
+  $('#lvPd').onchange = e => { $('#lvPdAttrBox').hidden = e.target.value === 'know'; };
+  const negs = ALL9.filter(k => (s.traitNeg[k]|0) - ((lv.negRed[k]|0)) > 0);
+  $('#lvCancel').onclick = () => { panel.innerHTML = ''; };
+  // reveal rolls one by one
+  $$('.rv', panel).forEach((el, i) => setTimeout(() => { el.textContent = el.dataset.v; el.parentElement.classList.add('shown'); }, reduce ? 0 : 150 + i * 160));
+  panel.scrollIntoView({block: 'start'});
+  $('#lvOk').onclick = () => {
+    const L2 = lvOf(s); const gains = {...L2.gains}; ATTR8.forEach(k => { if (rolls[k].up) gains[k] = (gains[k]|0) + 1; });
+    let ph = L2.ph + 1; const abilities = L2.abilities.slice(); let second = L2.second, abTxt = 'PH guardado';
+    if (needSecond && $('#lvSecond').value) second = $('#lvSecond').value;
+    const pick = $('#lvAb').value; if (pick) { const [pid, aid, cost] = pick.split('/'); abilities.push({prof: pid, id: aid}); ph -= +cost; abTxt = (K.profs.find(p => p.id === pid).abilities.find(a => a.id === aid) || {}).name; }
+    const pd = $('#lvPd').value, at = $('#lvPdAttr').value; const pos = {...L2.pos}, negRed = {...L2.negRed}; let know = L2.know, pdTxt;
+    if (pd === 'pos') { pos[at] = (pos[at]|0) + 1; pdTxt = `+1 Qualidade em ${at}`; }
+    else if (pd === 'neg') { if (!negs.includes(at)) return alertLv(`${at} não tem Defeito para abrandar. Com defeito: ${negs.join(', ') || 'nenhum'}.`); negRed[at] = (negRed[at]|0) + 1; pdTxt = `Defeito em ${at} abrandado`; }
+    else { know++; pdTxt = '+1 Conhecimento'; }
+    const ups = ATTR8.filter(k => rolls[k].up);
+    s.lv = {...L2, level: next, gains, pos, negRed, know, abilities, second, ph, hist: [...L2.hist, {level: next, ups, ab: abTxt, pd: pdTxt}]};
+    const after = withSheet(s, sheetCalc); s.live = s.live || {};
+    s.live.pv = (s.live.pv ?? c.pv) + (after.pv - c.pv); s.live.pm = (s.live.pm ?? c.pm) + (after.pm - c.pm);
+    if (know > L2.know) s.knowPts = s.knowPts; // knowledge points are tracked in lv.know
+    logJ(s.live, `<b>Subiu para o nível ${next}.</b> Cresceu: ${ups.join(', ') || 'nada'}. Habilidade: ${esc(abTxt)}. ${pdTxt}.`);
+    saveJG(); $('#lvPanel').innerHTML = ''; fillPlay(); alertBox(`Nível ${next}! PV máx ${after.pv}, PM máx ${after.pm}.`); window.scrollTo(0, 0);
+  };
+  function alertLv(m){ let p = $('#lvBox .hint'); if (!p) { p = document.createElement('p'); p.className = 'hint'; p.style.color = 'var(--foe)'; $('#lvBox').append(p); } p.textContent = m; }
+}
+
 /* ================= Router ================= */
 const logo = $('#logo');
 const PAGES = [
@@ -1731,9 +2127,11 @@ const PAGES = [
   {k: 'itens', label: 'Equipamentos', group: 'Mundo', desc: 'Armas, proteções, anéis e consumíveis com preços.', img: 'image39', home: true, count: () => K.items.length + ' ITENS'},
   {k: 'bestiario', label: 'Bestiário', group: 'Mundo', desc: 'Fichas completas das criaturas.', img: 'image4', home: true, pos: 'center 60%', count: () => K.bestiary.length + ' CRIATURAS'},
   {k: 'turnos', label: 'Calculadora de turnos', group: 'Ferramentas', desc: 'Quem age e quantas vezes, pela Velocidade.', img: 'image13', home: true, count: () => 'VEL + 1d6'},
+  {k: 'jogadores', label: 'Jogadores', group: 'Mesa', desc: 'As fichas dos personagens da campanha.', img: 'image35', home: true, pos: 'center 30%', count: () => 'FICHAS DA MESA'},
+  {k: 'jogo', label: 'Em jogo', group: 'Mesa', desc: 'PV, PM, itens, condições e subir de nível.', img: 'image4', home: true, pos: 'center 40%', count: () => 'FICHA AO VIVO'},
   {k: 'historiador', label: 'Guia do Historiador', group: 'Mestre', desc: 'Condução, mediação e o Encontro Zero.', img: 'image12', home: true, pos: 'center 20%'},
 ];
-const GROUPS = ['Começar', 'Personagem', 'Regras', 'Mundo', 'Ferramentas', 'Mestre'];
+const GROUPS = ['Começar', 'Personagem', 'Regras', 'Mundo', 'Ferramentas', 'Mesa', 'Mestre'];
 const overlay = $('#overlay'), menuBtn = $('#menuBtn');
 function buildMenu(cur){
   $('#menuBody').innerHTML = `<div class="mgroup" style="--i:0"><a href="#inicio" aria-current="${cur === 'inicio'}">Início</a></div>` + GROUPS.map((g, i) => `<div class="mgroup" style="--i:${i + 1}"><h4>${g}</h4>${PAGES.filter(p => p.group === g).map(p => `<a href="#${p.k}" aria-current="${p.k === cur}"><span>${p.label}</span><small>${p.desc}</small></a>`).join('')}</div>`).join('');
@@ -1749,13 +2147,14 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && overlay.cl
 let curNav = 'inicio';
 function setNav(n){ curNav = n; $$('.links a').forEach(a => a.setAttribute('aria-current', a.dataset.nav === n ? 'true' : 'false')); const p = PAGES.find(x => x.k === n); $('#here').textContent = p ? p.label : 'Início'; }
 const ROUTES = {fundamentos: renderBasics, criacao: renderCreation, ficha: renderSheet, racas: renderRaces, profissoes: renderProfs, tracos: renderTraits, cores: renderColors,
-  combate: renderCombat, magia: renderMagic, condicoes: renderConditions, progressao: renderProgress, regras: renderExtra, itens: renderItems, bestiario: renderBestiary, turnos: renderTurns, historiador: renderGM};
+  combate: renderCombat, magia: renderMagic, condicoes: renderConditions, progressao: renderProgress, regras: renderExtra, itens: renderItems, bestiario: renderBestiary, turnos: renderTurns, historiador: renderGM, jogadores: renderPlayers, jogo: renderPlay};
 function draw(h){
   let nav = 'inicio';
   if (ROUTES[h]) { nav = h; ROUTES[h](); }
   else if (h.startsWith('raca-')) { nav = 'racas'; renderRace(h.slice(5)); }
   else if (h.startsWith('prof-')) { nav = 'profissoes'; const [id, ab] = h.slice(5).split('--'); renderProf(id, ab); }
   else if (h.startsWith('criatura-')) { nav = 'bestiario'; renderBeast(h.slice(9)); }
+  else if (h.startsWith('jogador-')) { nav = 'jogadores'; renderPlayer(h.slice(8)); }
   else renderHome();
   setNav(nav); bindTilt(page);
   const p = PAGES.find(x => x.k === nav);
